@@ -553,10 +553,10 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <div class="row"><button id="btn-save-notes" class="btn">Salva note</button><span id="notes-status" class="small muted"></span></div>
     </div>
     <div class="card">
-      <h2>Esporta e importa CSV</h2>
-      <div class="small muted">Il CSV si apre in Excel, Numbers o Google Fogli. L'importazione <b>aggiunge</b> movimenti a quelli che ci sono già: va bene per l'export di Monefy, per l'estratto conto della banca o per un CSV di Prisma.</div>
+      <h2>Esporta e importa</h2>
+      <div class="small muted">Il CSV si apre in Excel, Numbers o Google Fogli. L'importazione <b>aggiunge</b> movimenti a quelli che ci sono già: va bene per l'export di Monefy, per l'estratto conto della banca (CSV o Excel .xls/.xlsx) o per un CSV di Prisma.</div>
       <div class="row wrap"><button id="btn-csv-all" class="btn">Esporta tutto</button><button id="btn-csv-month" class="btn">Esporta il periodo</button></div>
-      <label class="btn primary block">Importa da CSV<input id="csv-file" type="file" hidden></label>
+      <label class="btn primary block">Importa estratto conto (CSV o Excel)<input id="csv-file" type="file" hidden></label>
     </div>
     <div class="card">
       <h2>Backup completo</h2>
@@ -570,7 +570,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.0</div>
+      <div class="small muted">Prisma · versione 3.1</div>
     </div>
   </section>
 </main>
@@ -735,7 +735,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 <div id="csv-sheet" class="sheet" hidden>
   <form class="panel" id="csv-form" autocomplete="off">
     <div class="grab"></div>
-    <div class="row between"><h2>Importa da CSV</h2><button type="button" class="btn" data-close="csv-sheet" aria-label="Chiudi" style="padding:9px 12px">✕</button></div>
+    <div class="row between"><h2>Importa movimenti</h2><button type="button" class="btn" data-close="csv-sheet" aria-label="Chiudi" style="padding:9px 12px">✕</button></div>
     <div class="small muted" id="csv-info"></div>
     <div class="field"><span>Colonne del file (controlla che siano giuste)</span><div class="csvmap" id="csv-map"></div></div>
     <label class="toggle" for="csv-invert"><input type="checkbox" id="csv-invert"> Inverti il segno (se nel file le spese sono numeri positivi)</label>
@@ -1272,8 +1272,8 @@ function renderDiffHelp() {
   box.replaceChildren(
     el("div", { class: "small", style: "margin-top:6px", text: found.length ? `Ho controllato i movimenti ${sinceTxt}. Ecco i sospetti per una differenza di ${eurS(D)}:` : `Nei movimenti ${sinceTxt} non trovo un singolo errore che spieghi ${eurS(D)}. Probabilmente mancano o sono sbagliati più movimenti.` }),
     ...items,
-    el("div", { class: "small muted", style: "margin-top:8px", text: "Il controllo più sicuro è confrontare l'estratto conto: scaricalo in CSV dalla banca e caricalo qui. Ti mostro cosa manca, cosa c'è in più e gli importi diversi, senza importare niente finché non confermi." }),
-    el("button", { class: "btn primary block", type: "button", onclick: () => $("#csv-file").click() }, "Confronta con l'estratto conto (CSV)"));
+    el("div", { class: "small muted", style: "margin-top:8px", text: "Il controllo più sicuro è confrontare l'estratto conto: scarica la lista movimenti dalla banca (Excel o CSV) e caricala qui. Ti mostro cosa manca, cosa c'è in più e gli importi diversi, senza importare niente finché non confermi." }),
+    el("button", { class: "btn primary block", type: "button", onclick: () => $("#csv-file").click() }, "Confronta con l'estratto conto"));
 }
 
 /* ---------- render: lista ---------- */
@@ -2075,6 +2075,7 @@ function csvDateOrder(data, col) {
 }
 function csvDate(s, order) {
   s = String(s || "").trim(); let m, y, mo, d;
+  if (/^\d{5}([.,]\d+)?$/.test(s)) { const n = Math.floor(Number(s.replace(",", "."))); if (n > 25000 && n < 80000) { const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000); return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`; } } // Excel date number
   if ((m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
   else if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/))) { y = +m[3]; if (y < 100) y += 2000; if (order === "mdy") { mo = +m[1]; d = +m[2]; } else { d = +m[1]; mo = +m[2]; } }
   else return null;
@@ -2090,10 +2091,121 @@ function csvCategory(name, note, a) {
   if (name) { const mm = MONEFY_CATS[norm(name)]; if (mm && fits(mm)) return mm; }
   return fallbackCat(isIn);
 }
+/* ---------- reading Excel files from the bank (no libraries: works offline) ---------- */
+const cellStr = (v) => (typeof v === "number" ? String(round2(v) === v ? v : Math.round(v * 1e6) / 1e6).replace(".", ",") : String(v == null ? "" : v).replace(/\s+/g, " ").trim());
+function gridToRows(grid) { return grid.filter(Boolean).map((r) => Array.from(r, cellStr)).filter((r) => r.some((c) => c)); }
+async function readTableFile(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  if (buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11 && buf[3] === 0xe0) return gridToRows(readXls(buf));
+  if (buf[0] === 0x50 && buf[1] === 0x4b) return gridToRows(await readXlsx(buf));
+  const text = new TextDecoder(buf[0] === 0xff && buf[1] === 0xfe ? "utf-16le" : "utf-8").decode(buf);
+  if (/^\s*<(\?xml|!doctype|html|table|meta)/i.test(text) || /<table[\s>]/i.test(text.slice(0, 4000))) return readHtmlTable(text);
+  if (/\.pdf$/i.test(file.name) || text.startsWith("%PDF")) throw new Error("Il PDF non si può importare: scarica la lista movimenti in Excel (XLS) o CSV.");
+  return parseCsv(text);
+}
+function readHtmlTable(text) {
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  const tables = [...doc.querySelectorAll("table")]; if (!tables.length) throw new Error("Nel file non trovo una tabella di movimenti.");
+  const rowsOf = (t) => [...t.rows].map((r) => [...r.cells].flatMap((c) => Array(Math.max(1, c.colSpan || 1)).fill("").map((_, i) => (i ? "" : c.textContent.replace(/\s+/g, " ").trim()))));
+  return tables.map(rowsOf).filter((r) => r.length).sort((a, b) => b.length - a.length)[0].filter((r) => r.some((c) => c));
+}
+async function inflateRaw(bytes) {
+  if (typeof DecompressionStream === "undefined") throw new Error("Questo telefono non riesce ad aprire i file .xlsx: aggiorna iOS o usa CSV.");
+  return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+}
+async function readXlsx(buf) {
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = -1; for (let i = buf.length - 22; i >= Math.max(0, buf.length - 66000); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("File Excel non leggibile.");
+  const files = new Map(); let p = dv.getUint32(eocd + 16, true); const n = dv.getUint16(eocd + 10, true);
+  for (let k = 0; k < n; k++) {
+    const meth = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), el2 = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), off = dv.getUint32(p + 42, true);
+    files.set(new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nl)), { meth, csize, off }); p += 46 + nl + el2 + cl;
+  }
+  const get = async (name) => { const f = files.get(name); if (!f) return null; const st = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true); const raw = buf.subarray(st, st + f.csize); return new TextDecoder().decode(f.meth === 0 ? raw : await inflateRaw(raw)); };
+  const xml = (t) => new DOMParser().parseFromString(t, "application/xml");
+  const ss = []; const sst = await get("xl/sharedStrings.xml");
+  if (sst) for (const si of xml(sst).getElementsByTagName("si")) ss.push([...si.getElementsByTagName("t")].map((t) => t.textContent).join(""));
+  const sheets = [...files.keys()].filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a, b) => Number(a.match(/\d+/)[0]) - Number(b.match(/\d+/)[0]));
+  if (!sheets.length) throw new Error("Nel file Excel non trovo fogli.");
+  const grid = [];
+  for (const c of xml(await get(sheets[0])).getElementsByTagName("c")) {
+    const ref = c.getAttribute("r") || ""; const m = ref.match(/^([A-Z]+)(\d+)$/); if (!m) continue;
+    let col = 0; for (const ch of m[1]) col = col * 26 + ch.charCodeAt(0) - 64;
+    const t = c.getAttribute("t"); const v = c.getElementsByTagName("v")[0];
+    let val = t === "inlineStr" ? [...c.getElementsByTagName("t")].map((x) => x.textContent).join("") : v ? v.textContent : "";
+    if (t === "s") val = ss[Number(val)] || ""; else if (t !== "str" && t !== "inlineStr" && t !== "b" && t !== "e" && val !== "") val = Number(val);
+    const r = Number(m[2]) - 1; (grid[r] = grid[r] || [])[col - 1] = val;
+  }
+  return grid;
+}
+function readXls(buf) { // old Excel 97-2003: compound file + BIFF8 records
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const ssz = 1 << dv.getUint16(0x1e, true), mssz = 1 << dv.getUint16(0x20, true);
+  const secOff = (s) => (s + 1) * ssz;
+  const difat = []; for (let i = 0; i < 109; i++) { const v = dv.getInt32(0x4c + i * 4, true); if (v >= 0) difat.push(v); }
+  let ds = dv.getInt32(0x44, true), guard = 0;
+  while (ds >= 0 && guard++ < 1000) { for (let i = 0; i < ssz / 4 - 1; i++) { const v = dv.getInt32(secOff(ds) + i * 4, true); if (v >= 0) difat.push(v); } ds = dv.getInt32(secOff(ds) + ssz - 4, true); }
+  const fat = []; for (const s of difat) for (let i = 0; i < ssz / 4; i++) fat.push(dv.getInt32(secOff(s) + i * 4, true));
+  const chain = (start, table) => { const out = []; let s = start; let g = 0; while (s >= 0 && g++ < 1e6) { out.push(s); s = table[s]; } return out; };
+  const readChain = (start, size) => { const parts = chain(start, fat); const out = new Uint8Array(parts.length * ssz); parts.forEach((s, i) => out.set(buf.subarray(secOff(s), secOff(s) + ssz), i * ssz)); return size != null ? out.subarray(0, size) : out; };
+  const dir = readChain(dv.getInt32(0x30, true)); const ddv = new DataView(dir.buffer);
+  const entries = []; for (let o = 0; o + 128 <= dir.length; o += 128) { const nl = ddv.getUint16(o + 64, true); if (!nl) continue; let name = ""; for (let i = 0; i < nl / 2 - 1; i++) name += String.fromCharCode(ddv.getUint16(o + i * 2, true)); entries.push({ name, type: dir[o + 66], start: ddv.getInt32(o + 116, true), size: ddv.getUint32(o + 120, true) }); }
+  const wb = entries.find((e) => e.name === "Workbook" || e.name === "Book"); if (!wb) throw new Error("File Excel non leggibile.");
+  let data;
+  if (wb.size >= dv.getUint32(0x38, true)) data = readChain(wb.start, wb.size);
+  else { // small stream: lives in the mini stream
+    const root = entries.find((e) => e.type === 5); const mini = readChain(root.start, root.size);
+    const mfat = []; const mf = readChain(dv.getInt32(0x3c, true)); const mfd = new DataView(mf.buffer); for (let i = 0; i < mf.length / 4; i++) mfat.push(mfd.getInt32(i * 4, true));
+    const parts = chain(wb.start, mfat); data = new Uint8Array(parts.length * mssz); parts.forEach((s, i) => data.set(mini.subarray(s * mssz, (s + 1) * mssz), i * mssz)); data = data.subarray(0, wb.size);
+  }
+  const d = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const recs = []; for (let o = 0; o + 4 <= data.length;) { const type = d.getUint16(o, true), len = d.getUint16(o + 2, true); recs.push({ type, o: o + 4, len }); o += 4 + len; }
+  // shared strings, which may continue over CONTINUE records
+  const sst = []; const si = recs.findIndex((r) => r.type === 0x00fc);
+  if (si >= 0) {
+    const chunks = [recs[si]]; for (let k = si + 1; k < recs.length && recs[k].type === 0x003c; k++) chunks.push(recs[k]);
+    let ci = 0, pos = chunks[0].o; const end = () => chunks[ci].o + chunks[ci].len;
+    const next = () => { ci++; pos = chunks[ci] ? chunks[ci].o : data.length; };
+    const u8 = () => { if (pos >= end()) next(); return data[pos++]; };
+    const u16 = () => u8() | (u8() << 8); const u32 = () => (u16() + u16() * 65536);
+    const skip = (n) => { while (n > 0 && chunks[ci]) { const k = Math.min(n, end() - pos); pos += k; n -= k; if (n > 0) next(); } };
+    u32(); const count = u32();
+    for (let k = 0; k < count && chunks[ci]; k++) {
+      const cch = u16(); let fl = u8(); const runs = fl & 8 ? u16() : 0; const ext = fl & 4 ? u32() : 0;
+      let str = "", left = cch;
+      while (left > 0 && chunks[ci]) {
+        if (pos >= end()) { next(); if (!chunks[ci]) break; fl = data[pos++]; }
+        const wide = fl & 1; const avail = Math.floor((end() - pos) / (wide ? 2 : 1)); const take = Math.min(left, avail);
+        for (let j = 0; j < take; j++) str += String.fromCharCode(wide ? d.getUint16(pos + 2 * j, true) : data[pos + j]);
+        pos += take * (wide ? 2 : 1); left -= take;
+        if (take === 0 && left > 0) { next(); if (!chunks[ci]) break; fl = data[pos++]; }
+      }
+      skip(runs * 4 + ext); sst.push(str);
+    }
+  }
+  const rk = (v) => { let x; if (v & 2) x = v >> 2; else { const b = new DataView(new ArrayBuffer(8)); b.setUint32(4, v & 0xfffffffc, true); x = b.getFloat64(0, true); } return v & 1 ? x / 100 : x; };
+  const grid = []; const put = (r, c, v) => { (grid[r] = grid[r] || [])[c] = v; };
+  let sheetNo = -1, inSheet = false, pendingStr = null;
+  for (const { type, o, len } of recs) {
+    if (type === 0x0809) { const kind = d.getUint16(o + 2, true); if (kind === 0x10) { sheetNo++; inSheet = sheetNo === 0; } else inSheet = false; continue; }
+    if (type === 0x000a) { if (inSheet) break; continue; }
+    if (!inSheet) continue;
+    const r = d.getUint16(o, true), c = d.getUint16(o + 2, true);
+    if (type === 0x00fd) put(r, c, sst[d.getUint32(o + 6, true)] || "");
+    else if (type === 0x0203) put(r, c, d.getFloat64(o + 6, true));
+    else if (type === 0x027e) put(r, c, rk(d.getUint32(o + 6, true)));
+    else if (type === 0x00bd) { const last = d.getUint16(o + len - 2, true); for (let k = c; k <= last; k++) put(r, k, rk(d.getUint32(o + 4 + (k - c) * 6 + 2, true))); }
+    else if (type === 0x0204) { const cch = d.getUint16(o + 6, true), wide = data[o + 8] & 1; let str = ""; for (let j = 0; j < cch; j++) str += String.fromCharCode(wide ? d.getUint16(o + 9 + 2 * j, true) : data[o + 9 + j]); put(r, c, str); }
+    else if (type === 0x0006) { if (d.getUint16(o + 12, true) === 0xffff) { if (data[o + 6] === 0) pendingStr = [r, c]; } else put(r, c, d.getFloat64(o + 6, true)); }
+    else if (type === 0x0207 && pendingStr) { const cch = d.getUint16(o, true), wide = data[o + 2] & 1; let str = ""; for (let j = 0; j < cch; j++) str += String.fromCharCode(wide ? d.getUint16(o + 3 + 2 * j, true) : data[o + 3 + j]); put(pendingStr[0], pendingStr[1], str); pendingStr = null; }
+  }
+  return grid;
+}
 async function openCsvImport(file) {
   if (!file) return;
   let rows;
-  try { rows = parseCsv(await file.text()); } catch (_) { toast("Non riesco a leggere il file."); return; }
+  try { rows = await readTableFile(file); } catch (e) { toast((e && e.message) || "Non riesco a leggere il file."); return; }
   if (rows.length < 1) { toast("Il file è vuoto."); return; }
   const det = csvDetect(rows);
   S.csv = { name: file.name, ...det };
