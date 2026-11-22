@@ -570,7 +570,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.3</div>
+      <div class="small muted">Prisma · versione 3.4</div>
     </div>
   </section>
 </main>
@@ -1481,7 +1481,8 @@ async function saveTx(e) {
   if (!Number.isFinite(v) || v === 0) { toast("Scrivi un importo valido, es. 12,50."); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast("Scegli una data."); return; }
   if (!S.txCat) { toast("Scegli una categoria."); return; }
-  const rec = { i: S.tx ? S.tx.i : "n" + uid6(), d, a: round2(S.txKind === "in" ? Math.abs(v) : -Math.abs(v)), c: S.txCat, n: $("#tx-note").value.trim() };
+  const rec = { i: S.tx ? S.tx.i : "n" + uid6(), d, a: round2(S.txKind === "in" ? Math.abs(v) : -Math.abs(v)), c: S.txCat, n: $("#tx-note").value.trim(), ...(S.tx && S.tx.k ? { k: S.tx.k } : {}) };
+  if (S.tx && S.tx.k && rec.n && (rec.n !== S.tx.n || rec.c !== S.tx.c)) saveLearned([[S.tx.k, rec.n, rec.c, rec.a]]);
   const old = S.tx; closeTx();
   try {
     if (old) {
@@ -1610,13 +1611,13 @@ function validateData(d) {
   const months = {}; let n = 0;
   for (const [k, arr] of Object.entries(d.months)) {
     if (!/^\d{4}-\d{2}$/.test(k) || !Array.isArray(arr)) throw new Error(`Mese non valido nel file: ${k}`);
-    const clean = arr.filter((t) => t && typeof t.a === "number" && /^\d{4}-\d{2}-\d{2}$/.test(t.d || "")).map((t) => ({ i: String(t.i || "n" + uid6()), d: t.d, a: round2(t.a), c: String(t.c || "altro"), n: String(t.n || "") }));
+    const clean = arr.filter((t) => t && typeof t.a === "number" && /^\d{4}-\d{2}-\d{2}$/.test(t.d || "")).map((t) => ({ i: String(t.i || "n" + uid6()), d: t.d, a: round2(t.a), c: String(t.c || "altro"), n: String(t.n || ""), ...(t.k ? { k: String(t.k) } : {}) }));
     if (clean.length) { months[k] = clean; n += clean.length; }
   }
   const cfg = {
     version: 1, startBalance: round2(Number(d.startBalance) || 0), startDate: d.startDate || null,
     categories: d.categories.map((c) => ({ id: String(c.id), name: String(c.name || c.id), emoji: String(c.emoji || "•"), hue: Number(c.hue) || 0, kind: ["in", "out", "any", "giro"].includes(c.kind) ? c.kind : "out", cap: Number(c.cap) > 0 ? Number(c.cap) : null, archived: !!c.archived })),
-    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [],
+    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [], aliases: d.aliases && typeof d.aliases === "object" ? d.aliases : {},
     lastCheck: d.lastCheck && d.lastCheck.date ? d.lastCheck : null,
     notes: typeof d.notes === "string" ? d.notes : "",
     lastBackup: d.lastBackup || null, importedAt: new Date().toISOString(),
@@ -1646,7 +1647,7 @@ async function importFromFile(file, statusEl) {
 }
 function exportData() {
   const months = {}; for (const k of [...S.months.keys()].sort()) months[k] = S.months.get(k);
-  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], months };
+  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], aliases: S.cfg.aliases || {}, months };
 }
 async function backup() {
   if (!S.cfg) return;
@@ -2226,6 +2227,7 @@ async function openCsvImport(file) {
     return [el("span", { text: label }), sel];
   }));
   csvRender();
+  if (S.csv.result && S.csv.result.learn && S.csv.result.learn.length) saveLearned(S.csv.result.learn);
   $("#csv-sheet").hidden = false; $("#csv-form").scrollTop = 0;
 }
 function cleanBankDesc(raw) {
@@ -2234,6 +2236,32 @@ function cleanBankDesc(raw) {
   if (card) t = t.replace(/\s+[A-Z]{3}$/, "");
   t = t.replace(/\s+/g, " ").trim();
   return (t || raw).slice(0, 90);
+}
+/* names you use for the bank's descriptions, learned from matches and from your edits */
+function bankKey(desc) {
+  const w = norm(desc).split(" ").filter((x) => x.length >= 3 && !/\d/.test(x) && !STOP.has(x) && !["www", "com", "ita", "spa", "europe", "italia"].includes(x));
+  return w.slice(0, 2).join(" ");
+}
+const aliases = () => (S.cfg && S.cfg.aliases && typeof S.cfg.aliases === "object" ? S.cfg.aliases : {});
+function aliasFor(k, a) {
+  const list = k && aliases()[k]; if (!list || !list.length) return null;
+  const exact = list.find((x) => Math.abs(x.a - a) < 0.005); if (exact) return exact;
+  return list.filter((x) => Math.sign(x.a) === Math.sign(a)).sort((x, y) => y.u - x.u)[0] || null;
+}
+function withLearned(base, pairs) { // pairs: [key, name, category, amount]
+  const out = { ...base }; let changed = false;
+  for (const [k, n, c, a] of pairs) {
+    if (!k || !n || !String(n).trim()) continue;
+    const list = (out[k] || []).map((x) => ({ ...x })); const i = list.findIndex((x) => norm(x.n) === norm(n));
+    if (i >= 0) { if (list[i].c !== c || Math.abs(list[i].a - a) >= 0.005) { list[i] = { ...list[i], c, a }; changed = true; } list[i].u = (list[i].u || 1) + 1; }
+    else { list.push({ n: String(n).trim(), c, a, u: 1 }); changed = true; }
+    out[k] = list.sort((x, y) => y.u - x.u).slice(0, 8);
+  }
+  return changed ? out : null;
+}
+async function saveLearned(pairs) {
+  const next = withLearned(aliases(), pairs); if (!next) return;
+  try { await writeCfg({ ...S.cfg, aliases: next }); } catch (_) {}
 }
 function csvCompute() {
   const C = S.csv; const m = C.map; const inv = $("#csv-invert").checked; const tol = Number($("#csv-dedup").value);
@@ -2252,8 +2280,9 @@ function csvCompute() {
     // card payments: the bank books them days later, the real date is in the description ("Operazione carta ... del 18.11.2026")
     let dd = d; const pm = raw.match(/operazione carta\b.*?\bdel (\d{2})[./](\d{2})[./](\d{4})/i);
     if (pm) { const pd = `${pm[3]}-${pm[2]}-${pm[1]}`; const lag = daysBetween(pd, d); if (/^\d{4}-\d{2}-\d{2}$/.test(pd) && lag >= 0 && lag <= 15) dd = pd; }
-    const n = cleanBankDesc(raw);
-    rows.push({ d: dd, booked: d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
+    const bank = cleanBankDesc(raw); const k = bankKey(bank); const al = aliasFor(k, a);
+    const n = al ? al.n : bank; const cat = al && cats().some((x) => x.id === al.c && !x.archived) ? al.c : csvCategory(m.cat >= 0 ? r[m.cat] : "", bank, a);
+    rows.push({ d: dd, booked: d, a, n, c: cat, k, bank, named: !!al });
   }
   if (tol < 0) return { out: rows, probable: [], mismatch: [], pairs: [], extra: [], range: null, bad, dup: 0 };
   // movements already in the app, by amount; each one can match only one row of the file
@@ -2261,16 +2290,16 @@ function csvCompute() {
   for (const t of allTx()) add(t);
   // the opening balance is not a movement in Prisma, but exports from other apps list it as one
   if (S.cfg.startDate && Number(S.cfg.startBalance)) add({ d: S.cfg.startDate, a: Number(S.cfg.startBalance), n: "Saldo iniziale", c: "" });
-  let dup = 0; const rest = [];
+  let dup = 0; const rest = []; const learn = [];
   for (const r of rows) { // pass 1: same date and amount = surely already there
     const e = (pool.get(r.a.toFixed(2)) || []).find((x) => !x.used && x.t.d === r.d);
-    if (e) { e.used = true; dup++; } else rest.push(r);
+    if (e) { e.used = true; dup++; if (e.t.i) learn.push([r.k, e.t.n, e.t.c, r.a]); } else rest.push(r);
   }
   const out = [], probable = [];
   for (const r of rest) { // pass 2: same amount a few days apart = probably what you noted before the bank booked it
     let best = null, bd = Infinity;
     if (tol > 0) for (const x of pool.get(r.a.toFixed(2)) || []) { if (x.used) continue; const dd = Math.abs(daysBetween(x.t.d, r.d)); if (dd <= tol && dd < bd) { best = x; bd = dd; } }
-    if (best) { best.used = true; probable.push({ ...r, match: best.t, days: bd }); } else out.push(r);
+    if (best) { best.used = true; probable.push({ ...r, match: best.t, days: bd }); if (best.t.i) learn.push([r.k, best.t.n, best.t.c, r.a]); } else out.push(r);
   }
   // pass 3: in the same days, an app movement with a slightly different amount (a few cents, or digits swapped)
   const unused = []; for (const arr of pool.values()) for (const x of arr) if (!x.used && x.t.i) unused.push(x);
@@ -2301,7 +2330,7 @@ function csvCompute() {
       const close = dc <= 100 || oneTypo(x.t.a, r.a);
       if (close && dd < bd) { best = x; bd = dd; }
     }
-    if (best) { best.used = true; mismatch.push({ ...r, match: best.t, days: bd }); } else out2.push(r);
+    if (best) { best.used = true; mismatch.push({ ...r, match: best.t, days: bd }); learn.push([r.k, best.t.n, best.t.c, r.a]); } else out2.push(r);
   }
   // movements in Prisma inside the statement's dates that the bank doesn't have
   const ds = rows.map((r) => r.booked || r.d).sort(); const range = ds.length ? [ds[0], ds[ds.length - 1]] : null;
@@ -2309,7 +2338,8 @@ function csvCompute() {
   const bankSum = round2(rows.reduce((acc, r) => acc + r.a, 0));
   // the same movements as Prisma has them: bank total, minus what's missing, adjusted for different amounts, plus what the bank doesn't have
   const appSum = round2(bankSum - out2.reduce((acc, r) => acc + r.a, 0) - mismatch.reduce((acc, r) => acc + (r.a - r.match.a), 0) + extra.reduce((acc, t) => acc + t.a, 0));
-  return { out: out2, probable, mismatch, pairs, extra, range, bankSum, appSum, bad, dup };
+  for (const p of pairs) { const main = Math.abs(p.rows[0].a) >= Math.abs(p.rows[1].a) ? p.rows[0] : p.rows[1]; learn.push([main.k, p.t.n, p.t.c, main.a]); }
+  return { out: out2, probable, mismatch, pairs, extra, range, bankSum, appSum, bad, dup, learn };
 }
 function csvRender() {
   const C = S.csv; const ok = C.map.date >= 0 && (C.map.amount >= 0 || C.map.out >= 0 || C.map.inc >= 0);
@@ -2344,7 +2374,7 @@ function csvRender() {
         el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) }));
     })] : []));
   $("#csv-preview").replaceChildren(...(res.out.length ? [el("div", { class: "dayhead" }, el("span", { text: "Nuovi movimenti" }), el("span", { text: res.out.length > 8 ? `primi 8 di ${res.out.length}` : "" })),
-    ...res.out.slice(0, 8).map((t) => { const c = catById(t.c); return el("div", { class: "tx" }, icon(c), el("span", { style: "min-width:0" }, el("div", { class: "t1", text: t.n || c.name }), el("div", { class: "t2", text: `${fmt(t.d)} · ${c.name}` })), el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) })); })] : []));
+    ...res.out.slice(0, 8).map((t) => { const c = catById(t.c); return el("div", { class: "tx" }, icon(c), el("span", { style: "min-width:0" }, el("div", { class: "t1", text: t.n || c.name }), el("div", { class: "t2", text: `${fmt(t.d)} · ${c.name}${t.named ? ` · in banca «${t.bank}»` : ""}` })), el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) })); })] : []));
   // comparison: wrong amounts and movements the bank doesn't have
   const rc = [];
   if (res.range) {
@@ -2386,7 +2416,7 @@ async function doCsvImport(e) {
   const chosen = S.csv && S.csv.chosen; if (!chosen || !chosen.length) return;
   $("#csv-sheet").hidden = true;
   const byMonth = new Map(); const ids = []; let k = 0;
-  for (const t of chosen) { const rec = { i: "c" + uid6() + (k++).toString(36), d: t.d, a: t.a, c: t.c, n: t.n }; ids.push(rec.i); const mk = monthKeyOf(t.d); byMonth.set(mk, [...(byMonth.get(mk) || []), rec]); }
+  for (const t of chosen) { const rec = { i: "c" + uid6() + (k++).toString(36), d: t.d, a: t.a, c: t.c, n: t.n, ...(t.k ? { k: t.k } : {}) }; ids.push(rec.i); const mk = monthKeyOf(t.d); byMonth.set(mk, [...(byMonth.get(mk) || []), rec]); }
   try {
     for (const [mk, list] of [...byMonth].sort()) await writeMonth(mk, [...cloneTx(mk), ...list]);
     const idSet = new Set(ids); const months = [...byMonth.keys()];
@@ -2513,11 +2543,23 @@ function bind() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).hidden = true; closeDrawer(); } });
 }
 
+/* ---------- new version: tell, then reload with one tap ---------- */
+function setupUpdates() {
+  const hadCtrl = !!navigator.serviceWorker.controller; let shown = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadCtrl || shown) return; shown = true;
+    toast("È pronta una nuova versione di Prisma.", [{ label: "Aggiorna", run: () => location.reload() }]); clearTimeout(toastTimer);
+  });
+  const check = () => navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+  setTimeout(check, 3000);
+}
+
 /* ---------- boot ---------- */
 async function boot() {
   bind(); route(); window.addEventListener("hashchange", route);
   window.addEventListener("resize", syncHeaderH);
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) { navigator.serviceWorker.register("sw.js").catch(() => {}); setupUpdates(); }
   try {
     await IDB.open();
     const all = await IDB.all();
