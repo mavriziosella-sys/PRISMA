@@ -574,7 +574,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.5.1</div>
+      <div class="small muted">Prisma · versione 3.5.2</div>
     </div>
   </section>
 </main>
@@ -2488,7 +2488,8 @@ function csvRender() {
   ].filter(Boolean) : [el("div", { class: "neg", text: "Scegli almeno le colonne Data e Importo (oppure Uscite/Entrate)." })]));
   $("#csv-probable").replaceChildren(...(np ? [
     el("div", { class: "dayhead" }, el("span", { text: "Probabili doppioni" }), el("span", { text: "spunta per importarli lo stesso" })),
-    ...res.probable.map((t, i) => {
+    np > 6 ? el("button", { class: "btn block", type: "button", onclick: () => { C.showProb = !C.showProb; csvRender(); } }, C.showProb ? "Nascondi l'elenco" : `Mostra tutti i ${np} (stesso importo, data diversa di pochi giorni)`) : null,
+    ...res.probable.slice(0, np > 6 && !C.showProb ? 0 : np).map((t, i) => {
       const cb = el("input", { type: "checkbox", "aria-label": `Importa lo stesso ${t.n || ""} ${eurS(t.a)} del ${fmt(t.d)}` }); cb.checked = C.pick.has(i);
       cb.addEventListener("change", () => { if (cb.checked) C.pick.add(i); else C.pick.delete(i); csvRender(); });
       const mc = catById(t.match.c);
@@ -2496,7 +2497,7 @@ function csvRender() {
         el("span", { style: "min-width:0" }, el("div", { class: "t1", text: `${t.n || "(senza descrizione)"} · ${fmt(t.d)}` }),
           el("div", { class: "t2", text: `In Prisma: «${t.match.n || mc.name}» del ${fmt(t.match.d)}${t.days ? ` (${t.days} giorn${t.days === 1 ? "o" : "i"} di differenza)` : ""}` })),
         el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) }));
-    })] : []));
+    })].filter(Boolean) : []));
   $("#csv-preview").replaceChildren(...(res.out.length ? [el("div", { class: "dayhead" }, el("span", { text: "Nuovi movimenti" }), el("span", { text: res.out.length > 8 ? `primi 8 di ${res.out.length}` : "" })),
     ...res.out.slice(0, 8).map((t) => { const c = catById(t.c); return el("div", { class: "tx" }, icon(c), el("span", { style: "min-width:0" }, el("div", { class: "t1", text: t.n || c.name }), el("div", { class: "t2", text: `${fmt(t.d)} · ${c.name}${t.named ? ` · in banca «${t.bank}»` : ""}` })), el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) })); })] : []));
   // comparison: wrong amounts and movements the bank doesn't have
@@ -2663,7 +2664,7 @@ function bind() {
   $("#btn-csv-month").addEventListener("click", () => exportCsv("period"));
   $("#csv-file").addEventListener("change", (e) => { openCsvImport(e.target.files[0]); e.target.value = ""; });
   $("#csv-form").addEventListener("submit", doCsvImport);
-  $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", () => { S.csv.pick = new Set(); csvRender(); });
+  $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", () => { S.csv.pick = new Set(); S.csv.showProb = false; csvRender(); });
   for (const b of $$("[data-close]")) b.addEventListener("click", () => { $("#" + b.dataset.close).hidden = true; });
   for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).hidden = true; closeDrawer(); } });
