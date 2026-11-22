@@ -37,6 +37,7 @@
   --ic-s: 85%;
   --ic-l: 93%;
   --seg-l: 62%;
+  --voce-l: 34%;
   --font-display: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color-scheme: light;
@@ -46,7 +47,7 @@
     --bg: #0e0c16; --surface: #1a1726; --ink: #eeeaf8; --muted: #a29cba; --line: #2a2638;
     --accent: #a78bfa; --accent-soft: #2a2245; --accent-ink: #160f33; --pos: #3fd39a; --neg: #ff7a8c; --warn: #f2b544;
     --hero-a: #2b1a6b; --hero-b: #432597; --hero-c: #6136c4;
-    --shadow: 0 0 0 1px #262236; --ic-s: 45%; --ic-l: 24%; --seg-l: 64%;
+    --shadow: 0 0 0 1px #262236; --ic-s: 45%; --ic-l: 24%; --seg-l: 64%; --voce-l: 78%;
     color-scheme: dark;
   }
 }
@@ -146,6 +147,12 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .lrow .rt { text-align: right; }
 .lrow .rt b { font-family: var(--font-display); font-variant-numeric: tabular-nums; display: block; }
 .lrow .rt span { font-size: 0.75rem; color: var(--muted); }
+.ic.voce { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; color: hsl(var(--h) 60% var(--voce-l)); }
+.subvoci { margin: 2px 0 8px 54px; padding-left: 10px; border-left: 2px solid var(--line); display: flex; flex-direction: column; }
+.subvoci .lrow { padding: 6px 0; grid-template-columns: 34px 1fr auto; gap: 10px; }
+.subvoci .ic { width: 34px; height: 34px; font-size: 0.9rem; }
+.lrow .chev { color: var(--muted); font-size: 0.8rem; margin-left: 4px; }
+.filterchip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 0.82rem; }
 .linkbtn { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 6px 0; align-self: flex-start; }
 
 /* pace chart */
@@ -357,6 +364,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <button class="ring-center" id="ring-center" type="button"></button>
       </div>
       <div class="stats3" id="stats3"></div>
+      <button class="linkbtn" id="legend-back" type="button" hidden>← Tutte le categorie</button>
       <div class="legend" id="legend"></div>
       <button class="linkbtn" id="legend-more" type="button" hidden></button>
       <div class="small muted" id="ring-note"></div>
@@ -531,7 +539,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.5</div>
+      <div class="small muted">Prisma · versione 2.6</div>
     </div>
   </section>
 </main>
@@ -770,7 +778,7 @@ const perContains = (P, d) => d >= P.start && d <= P.end;
 /* ---------- state ---------- */
 const S = {
   cfg: null, months: new Map(), loaded: false,
-  view: "panoramica", month: curMonthKey(), per: perMonth(curMonthKey()), sel: null, legendAll: false, search: "",
+  view: "panoramica", month: curMonthKey(), per: perMonth(curMonthKey()), sel: null, lf: null, rankSel: null, legendAll: false, search: "",
   chartMode: "month", inclBig: false, bseg: "tetti", goal: null, gmove: null, asset: null, assetType: "investimenti", goalHue: 190,
   tx: null, txKind: "out", txCat: null, cat: null, catKind: "out", catHue: 260,
   index: null, indexSig: "", pendingRestore: null,
@@ -956,6 +964,34 @@ function renderHeader() {
   $("#month-sub").textContent = n === 1 ? "1 movimento" : `${n} movimenti`;
 }
 
+/* ---------- voci: the descriptions you write, grouped inside a category ---------- */
+const vkey = (n) => norm(n) || "—";
+function voci(txs, catId) {
+  const m = new Map();
+  for (const t of txs) {
+    if (t.c !== catId) continue;
+    const k = vkey(t.n); let e = m.get(k);
+    if (!e) { e = { key: k, total: 0, count: 0, names: new Map() }; m.set(k, e); }
+    e.total -= t.a; e.count++;
+    const nm = String(t.n || "").trim() || "(senza descrizione)"; e.names.set(nm, (e.names.get(nm) || 0) + 1);
+  }
+  return [...m.values()].map((e) => ({ key: e.key, total: round2(e.total), count: e.count, label: cap1([...e.names].sort((a, b) => b[1] - a[1])[0][0]) }))
+    .filter((e) => Math.abs(e.total) >= 0.005).sort((a, b) => b.total - a.total);
+}
+function voceRow(v, cat, total, onPick, div) {
+  const val = v.total / (div || 1); const p = total > 0 ? (Math.max(0, val) / total) * 100 : 0;
+  const ch = (v.label.match(/[A-Za-zÀ-ÿ0-9]/) || ["•"])[0].toUpperCase();
+  return el("button", { class: "lrow", type: "button", onclick: onPick, "aria-label": `${v.label}: ${eur(val)}, ${v.count} movimenti. Tocca per vederli.` },
+    el("span", { class: "ic voce", style: `--h:${cat.hue}`, "aria-hidden": "true", text: ch }),
+    el("span", { style: "min-width:0" }, el("div", { class: "nm", text: v.label }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${Math.min(100, p).toFixed(1)}%` }))),
+    el("span", { class: "rt" }, el("b", { text: eur0(val) }), el("span", { text: `${v.count} ${v.count === 1 ? "volta" : "volte"} · ${p < 1 ? "<1" : Math.round(p)}%` })));
+}
+function openVoce(catId, v, per) {
+  if (per) setPer(per);
+  S.lf = { c: catId, key: v.key, label: v.label }; S.search = ""; $("#search").value = "";
+  if (location.hash === "#lista") renderAll(); else location.hash = "lista";
+}
+
 /* ---------- render: panoramica ---------- */
 function renderRing() {
   const { m, excluded } = perCatSpend(S.per, false);
@@ -977,7 +1013,7 @@ function renderRing() {
       const seg = sv("circle", { cx: 110, cy: 110, r: R, class: "ring-seg", "stroke-width": SW,
         "stroke-dasharray": `${draw} ${C - draw}`, "stroke-dashoffset": String(-(off + gap / 2)), transform: "rotate(-90 110 110)",
         style: `stroke:${color};opacity:${dim}` });
-      if (c) seg.addEventListener("click", () => { S.sel = S.sel === c ? null : c; renderPanoramica(); });
+      if (c) seg.addEventListener("click", () => { S.sel = S.sel === c ? null : c; S.legendAll = false; renderPanoramica(); });
       else seg.style.cursor = "default";
       nodes.push(seg); off += len;
     }
@@ -998,15 +1034,27 @@ function renderRing() {
     el("div", {}, el("span", { class: "k", text: "Uscite" }), el("span", { class: "v neg", text: eurS0(t.out) })),
     el("div", {}, el("span", { class: "k", text: "Netto" }), el("span", { class: "v " + (t.net >= 0 ? "pos" : "neg"), text: eurS0(t.net) })),
   );
+  const more = $("#legend-more");
+  $("#legend-back").hidden = !S.sel;
+  if (S.sel) {
+    const cat = catById(S.sel); const tot = m.get(S.sel) || 0;
+    const list = voci(perTx(S.per).filter((t) => Math.abs(t.a) < BIG), S.sel);
+    const shownV = S.legendAll ? list : list.slice(0, 8);
+    $("#legend").replaceChildren(el("div", { class: "dayhead" }, el("span", { text: `Voci di ${cat.name}` }), el("span", { text: perLabel(S.per) })),
+      ...shownV.map((v) => voceRow(v, cat, tot, () => openVoce(cat.id, v))));
+    more.hidden = list.length <= 8;
+    more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${list.length} voci`;
+    $("#ring-note").textContent = "Tocca una voce per vedere i suoi movimenti.";
+    return;
+  }
   const shown = S.legendAll ? rows : rows.slice(0, 6);
   $("#legend").replaceChildren(...shown.map(([c, v]) => {
     const cat = catById(c); const p = total ? (v / total) * 100 : 0;
-    return el("button", { class: "lrow", type: "button", "aria-pressed": String(S.sel === c), onclick: () => { S.sel = S.sel === c ? null : c; renderPanoramica(); } },
+    return el("button", { class: "lrow", type: "button", "aria-pressed": String(S.sel === c), onclick: () => { S.sel = S.sel === c ? null : c; S.legendAll = false; renderPanoramica(); } },
       icon(cat),
       el("span", { style: "min-width:0" }, el("div", { class: "nm", text: cat.name }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${p.toFixed(1)}%` }))),
       el("span", { class: "rt" }, el("b", { text: eur0(v) }), el("span", { text: `${p < 1 ? "<1" : Math.round(p)}%` })));
   }));
-  const more = $("#legend-more");
   more.hidden = rows.length <= 6;
   more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${rows.length} categorie`;
   $("#ring-note").textContent = excluded ? `Esclus${excluded === 1 ? "o 1 movimento" : `i ${excluded} movimenti`} sopra 5.000 € (prestiti, estinzioni): sono nei totali qui sopra.` : "";
@@ -1134,6 +1182,15 @@ function renderLista() {
     box.replaceChildren(...(hits.length ? groupByDay(hits.slice(0, 150)) : [el("div", { class: "empty", text: "Nessun movimento trovato." })]));
     return;
   }
+  if (S.lf) {
+    const f = S.lf; const list = perTx(S.per).filter((t) => t.c === f.c && vkey(t.n) === f.key).sort(byDateDesc);
+    const sum = round2(list.reduce((acc, t) => acc + t.a, 0));
+    $("#list-sub").replaceChildren(
+      el("button", { class: "filterchip", type: "button", onclick: () => { S.lf = null; renderLista(); }, "aria-label": `Togli il filtro ${f.label}` }, `${f.label} ✕`),
+      el("div", { style: "margin-top:8px", text: `${catById(f.c).name} · ${perLabel(S.per)}: ${list.length} moviment${list.length === 1 ? "o" : "i"}, totale ${eurS(sum)}. Scorri i periodi per confrontare.` }));
+    box.replaceChildren(...(list.length ? groupByDay(list) : [el("div", { class: "empty", text: `Nessun movimento «${f.label}» ${perOf(S.per)}.` })]));
+    return;
+  }
   const list = perTx(S.per).sort(byDateDesc);
   const sum = round2(list.reduce((acc, t) => acc + t.a, 0));
   $("#list-sub").textContent = list.length ? `${perLabel(S.per)}: ${list.length} moviment${list.length === 1 ? "o" : "i"}, saldo del periodo ${eurS(sum)}. Tocca per modificare.` : "";
@@ -1200,18 +1257,25 @@ function renderAnalisi() {
     el("div", {}, el("div", { class: "k", text: "Risparmio medio" }), el("div", { class: "v " + (ai - ao >= 0 ? "pos" : "neg"), text: eur0(ai - ao) })));
   const avgMode = S.chartMode === "avg";
   $("#seg-month").setAttribute("aria-pressed", String(!avgMode)); $("#seg-avg").setAttribute("aria-pressed", String(avgMode));
-  const { m } = avgMode ? catSpend(full, S.inclBig) : perCatSpend(S.per, S.inclBig);
+  const { m } = avgMode ? catSpend(full.map((d) => d.k), S.inclBig) : perCatSpend(S.per, S.inclBig);
   const div = avgMode ? full.length : 1;
   const rows = [...m].map(([c, v]) => [c, v / div]).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
   const tot = rows.reduce((s, [, v]) => s + v, 0);
   $("#rank-title").textContent = avgMode ? "Dove vanno i soldi, media al mese" : `Dove vanno i soldi ${perOf(S.per)}`;
   $("#rank-sub").textContent = rows.length ? `Totale ${eur0(tot)}${avgMode ? " al mese (ultimi 11 mesi completi)" : ""}. Le categorie con tetto mostrano il limite.` : "";
   const mx = Math.max(1, ...rows.map(([, v]) => v));
-  $("#rank").replaceChildren(...(rows.length ? rows.map(([c, v]) => {
-    const cat = catById(c); const cap = Number(cat.cap) || 0;
-    return el("div", { class: "lrow" }, icon(cat),
-      el("span", { style: "min-width:0" }, el("div", { class: "nm", text: cat.name }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${((v / mx) * 100).toFixed(1)}%` }))),
+  const fullPer = perCustom(`${full[0].k}-01`, `${full[full.length - 1].k}-${pad(daysIn(full[full.length - 1].k))}`);
+  const srcTx = (avgMode ? perTx(fullPer) : perTx(S.per)).filter((t) => S.inclBig || Math.abs(t.a) < BIG);
+  const capF = avgMode ? 1 : capFactor(S.per);
+  $("#rank").replaceChildren(...(rows.length ? rows.flatMap(([c, v]) => {
+    const cat = catById(c); const cap = (Number(cat.cap) || 0) * capF; const open = S.rankSel === c;
+    const row = el("button", { class: "lrow", type: "button", "aria-expanded": String(open), onclick: () => { S.rankSel = open ? null : c; renderAnalisi(); } }, icon(cat),
+      el("span", { style: "min-width:0" }, el("div", { class: "nm" }, cat.name, el("span", { class: "chev", text: open ? "▲" : "▼" })), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${((v / mx) * 100).toFixed(1)}%` }))),
       el("span", { class: "rt" }, el("b", { class: cap && v > cap ? "neg" : "", text: eur0(v) }), cap ? el("span", { text: `tetto ${nf0.format(cap)} €` }) : null));
+    if (!open) return [row];
+    const list = voci(srcTx, c);
+    return [row, el("div", { class: "subvoci" }, ...list.slice(0, 8).map((x) => voceRow(x, cat, v, () => openVoce(c, x, avgMode ? fullPer : null), div)),
+      list.length > 8 ? el("div", { class: "small muted", style: "padding:6px 0", text: `e altre ${list.length - 8} voci` }) : null)];
   }) : [el("div", { class: "empty", text: "Nessuna uscita nel periodo." })]));
 }
 
@@ -1999,7 +2063,7 @@ function setupSwipe() {
 
 /* ---------- bindings ---------- */
 function bind() {
-  for (const b of $$(".tabs button")) b.addEventListener("click", () => { location.hash = b.dataset.view; });
+  for (const b of $$(".tabs button")) b.addEventListener("click", () => { S.lf = null; if (location.hash === "#" + b.dataset.view) renderAll(); else location.hash = b.dataset.view; });
   $("#btn-altro").addEventListener("click", () => { location.hash = S.view === "altro" ? "panoramica" : "altro"; });
   for (const b of $$("[data-month-step]")) b.addEventListener("click", () => { setPer(stepPer(S.per, Number(b.dataset.monthStep))); renderAll(); });
   for (const b of $$("#perseg button")) b.addEventListener("click", () => {
@@ -2024,6 +2088,7 @@ function bind() {
   $("#fab-in").addEventListener("click", () => openTx(null, { kind: "in" }));
   $("#ring-center").addEventListener("click", () => { if (S.sel) { S.sel = null; renderPanoramica(); } });
   $("#legend-more").addEventListener("click", () => { S.legendAll = !S.legendAll; renderPanoramica(); });
+  $("#legend-back").addEventListener("click", () => { S.sel = null; S.legendAll = false; renderPanoramica(); });
   $("#tx-form").addEventListener("submit", saveTx);
   $("#tx-close").addEventListener("click", closeTx);
   $("#tx-delete").addEventListener("click", () => { const t = S.tx; closeTx(); if (t) deleteTx(t); });
