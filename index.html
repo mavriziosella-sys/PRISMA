@@ -595,7 +595,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.6</div>
+      <div class="small muted">Prisma · versione 3.6.1</div>
     </div>
   </section>
 </main>
@@ -1004,6 +1004,8 @@ function buildIndex() {
 const KEYWORDS = { benzina: "carbur", diesel: "carbur", telepass: "carbur", amazon: "shop", ebay: "shop", aliexpress: "shop", stipendio: "stip",
   farmacia: "salute", pizza: "risto", colazione: "risto", aperitivo: "risto", conad: "spesa", lidl: "spesa", eurospin: "spesa", coop: "spesa",
   netflix: "abbon", claude: "ai", chatgpt: "ai", satispay: "satispay", giardino: "giardino", vivaio: "giardino", piante: "giardino",
+  oxfam: "donazioni", unicef: "donazioni", emergency: "donazioni", airc: "donazioni", onlus: "donazioni", donazione: "donazioni", telethon: "donazioni",
+  tatax: "fisco", commercialista: "fisco", caf: "fisco", f24: "fisco", "730": "fisco",
   hera: "utenze", enel: "utenze", bolletta: "utenze", luce: "utenze", gas: "utenze", acqua: "utenze", tim: "tel", vodafone: "tel", iliad: "tel", fastweb: "tel", windtre: "tel",
   esselunga: "spesa", carrefour: "spesa", despar: "spesa", famila: "spesa", pam: "spesa", ipercoop: "spesa", autostrade: "carbur", q8: "carbur", eni: "carbur", esso: "carbur", tamoil: "carbur" };
 function guessCategory(note, wantIn) {
@@ -2808,6 +2810,24 @@ function setupLock() {
   });
 }
 
+/* ---------- one-time changes to your data ---------- */
+async function migrate() {
+  if (!S.cfg || S.cfg.mig >= 1) return;
+  const list = cats().map((c) => ({ ...c })); const has = (re) => list.find((c) => re.test(norm(c.name)));
+  const add = [];
+  if (!list.some((c) => c.id === "donazioni") && !has(/donazion|benefic/)) add.push({ id: "donazioni", name: "Donazioni", emoji: "🎗️", hue: 345, kind: "out", cap: null, archived: false });
+  if (!list.some((c) => c.id === "fisco") && !has(/tasse|fisco|commercialist/)) add.push({ id: "fisco", name: "Tasse e 730", emoji: "🧾", hue: 50, kind: "out", cap: null, archived: false });
+  const don = (list.find((c) => c.id === "donazioni") || has(/donazion|benefic/) || add.find((c) => c.id === "donazioni") || {}).id;
+  const fis = (list.find((c) => c.id === "fisco") || has(/tasse|fisco|commercialist/) || add.find((c) => c.id === "fisco") || {}).id;
+  const target = (t) => (t.c !== "altro" ? null : /\boxfam\b/i.test(t.n || "") ? don : /\btatax\b/i.test(t.n || "") ? fis : null);
+  let moved = 0;
+  try {
+    for (const k of [...S.months.keys()]) { const arr = S.months.get(k); if (!arr.some((t) => target(t))) continue; await writeMonth(k, arr.map((t) => { const to = target(t); if (to) { moved++; return { ...t, c: to }; } return { ...t }; })); }
+    await writeCfg({ ...S.cfg, categories: [...list, ...add], mig: 1 });
+    if (add.length || moved) toast(`Nuove categorie: ${add.map((c) => c.name).join(" e ") || "nessuna"}${moved ? ` · spostati ${moved} movimenti (Oxfam, Tatax)` : ""}.`);
+  } catch (_) {}
+}
+
 /* ---------- boot ---------- */
 async function boot() {
   bind(); route(); window.addEventListener("hashchange", route);
@@ -2824,7 +2844,7 @@ async function boot() {
   } catch (e) {
     banner("Non riesco ad aprire l'archivio dei dati su questo telefono. Se stai navigando in modalità privata, aprila normalmente.");
   }
-  S.loaded = true; setupLock();
+  S.loaded = true; setupLock(); await migrate();
   if (lockCfg()) { showLock(); faceUnlock(true); }
   renderAll();
   document.addEventListener("visibilitychange", () => { if (!document.hidden && S.cfg) renderAll(); });
