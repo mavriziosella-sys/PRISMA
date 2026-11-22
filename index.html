@@ -328,6 +328,9 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .csvmap select { min-height: 42px; padding: 8px 10px; }
 .csvsum { display: flex; flex-direction: column; gap: 4px; font-size: 0.88rem; }
 .csvsum b { font-family: var(--font-display); }
+.probrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.probrow input { width: 22px; height: 22px; accent-color: var(--accent); }
+.probrow .t2 { white-space: normal; }
 
 /* ---------- −/+ buttons ---------- */
 .fabs { position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 20px; z-index: 15; pointer-events: none; }
@@ -563,7 +566,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.8</div>
+      <div class="small muted">Prisma · versione 2.9</div>
     </div>
   </section>
 </main>
@@ -730,8 +733,10 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     <div class="small muted" id="csv-info"></div>
     <div class="field"><span>Colonne del file (controlla che siano giuste)</span><div class="csvmap" id="csv-map"></div></div>
     <label class="toggle" for="csv-invert"><input type="checkbox" id="csv-invert"> Inverti il segno (se nel file le spese sono numeri positivi)</label>
-    <label class="toggle" for="csv-dedup"><input type="checkbox" id="csv-dedup" checked> Salta i movimenti già presenti (stessa data e stesso importo)</label>
+    <label class="field" for="csv-dedup"><span>Già presenti: stesso importo e data vicina</span>
+      <select id="csv-dedup"><option value="0">Solo stessa data</option><option value="3">Fino a 3 giorni di differenza</option><option value="5" selected>Fino a 5 giorni di differenza</option><option value="7">Fino a 7 giorni di differenza</option><option value="-1">Non controllare i doppioni</option></select></label>
     <div class="banner csvsum" id="csv-summary"></div>
+    <div id="csv-probable"></div>
     <div id="csv-preview"></div>
     <button type="submit" class="btn primary block" id="csv-go">Importa</button>
   </form>
@@ -2034,7 +2039,7 @@ async function openCsvImport(file) {
   S.csv = { name: file.name, ...det };
   S.csv.style = csvStyle(det.data, [det.map.amount, det.map.out, det.map.inc]);
   S.csv.order = det.map.date >= 0 ? csvDateOrder(det.data, det.map.date) : "dmy";
-  $("#csv-invert").checked = false; $("#csv-dedup").checked = true;
+  $("#csv-invert").checked = false; $("#csv-dedup").value = "5"; S.csv.pick = new Set();
   $("#csv-info").textContent = `${file.name}: ${det.data.length} righe${det.hasHeader ? "" : " (non ho trovato l'intestazione: scegli tu le colonne)"}.`;
   $("#csv-map").replaceChildren(...CSV_FIELDS.flatMap(([f, label]) => {
     const sel = el("select", { "aria-label": label, onchange: (e) => { S.csv.map[f] = Number(e.target.value); if (f === "date") S.csv.order = csvDateOrder(S.csv.data, S.csv.map.date); if (["amount", "out", "inc"].includes(f)) S.csv.style = csvStyle(S.csv.data, [S.csv.map.amount, S.csv.map.out, S.csv.map.inc]); csvRender(); } },
@@ -2047,14 +2052,9 @@ async function openCsvImport(file) {
   $("#csv-sheet").hidden = false; $("#csv-form").scrollTop = 0;
 }
 function csvCompute() {
-  const C = S.csv; const m = C.map; const inv = $("#csv-invert").checked; const dedup = $("#csv-dedup").checked;
-  const counts = new Map();
-  if (dedup) {
-    for (const t of allTx()) { const k = `${t.d}|${Number(t.a).toFixed(2)}`; counts.set(k, (counts.get(k) || 0) + 1); }
-    // the opening balance is not a movement in Prisma, but exports from other apps list it as one
-    if (S.cfg.startDate && Number(S.cfg.startBalance)) { const k = `${S.cfg.startDate}|${Number(S.cfg.startBalance).toFixed(2)}`; counts.set(k, (counts.get(k) || 0) + 1); }
-  }
-  const out = []; let bad = 0, dup = 0;
+  const C = S.csv; const m = C.map; const inv = $("#csv-invert").checked; const tol = Number($("#csv-dedup").value);
+  // rows of the file
+  const rows = []; let bad = 0;
   for (const r of C.data) {
     const d = m.date >= 0 ? csvDate(r[m.date], C.order) : null;
     let a = m.amount >= 0 ? csvNum(r[m.amount], C.style) : NaN;
@@ -2064,37 +2064,69 @@ function csvCompute() {
     }
     if (!d || !Number.isFinite(a) || Math.abs(a) < 0.005) { bad++; continue; }
     a = round2(inv ? -a : a);
-    const k = `${d}|${a.toFixed(2)}`;
-    if (dedup && (counts.get(k) || 0) > 0) { counts.set(k, counts.get(k) - 1); dup++; continue; }
     const n = m.desc >= 0 ? String(r[m.desc] || "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-    out.push({ d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
+    rows.push({ d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
   }
-  return { out, bad, dup };
+  if (tol < 0) return { out: rows, probable: [], bad, dup: 0 };
+  // movements already in the app, by amount; each one can match only one row of the file
+  const pool = new Map(); const add = (t) => { const k = Number(t.a).toFixed(2); if (!pool.has(k)) pool.set(k, []); pool.get(k).push({ t, used: false }); };
+  for (const t of allTx()) add(t);
+  // the opening balance is not a movement in Prisma, but exports from other apps list it as one
+  if (S.cfg.startDate && Number(S.cfg.startBalance)) add({ d: S.cfg.startDate, a: Number(S.cfg.startBalance), n: "Saldo iniziale", c: "" });
+  let dup = 0; const rest = [];
+  for (const r of rows) { // pass 1: same date and amount = surely already there
+    const e = (pool.get(r.a.toFixed(2)) || []).find((x) => !x.used && x.t.d === r.d);
+    if (e) { e.used = true; dup++; } else rest.push(r);
+  }
+  const out = [], probable = [];
+  for (const r of rest) { // pass 2: same amount a few days apart = probably what you noted before the bank booked it
+    let best = null, bd = Infinity;
+    if (tol > 0) for (const x of pool.get(r.a.toFixed(2)) || []) { if (x.used) continue; const dd = Math.abs(daysBetween(x.t.d, r.d)); if (dd <= tol && dd < bd) { best = x; bd = dd; } }
+    if (best) { best.used = true; probable.push({ ...r, match: best.t, days: bd }); } else out.push(r);
+  }
+  return { out, probable, bad, dup };
 }
 function csvRender() {
   const C = S.csv; const ok = C.map.date >= 0 && (C.map.amount >= 0 || C.map.out >= 0 || C.map.inc >= 0);
-  const res = ok ? csvCompute() : { out: [], bad: C.data.length, dup: 0 }; C.result = res;
-  const inc = res.out.filter((t) => t.a > 0).reduce((s, t) => s + t.a, 0), outS = res.out.filter((t) => t.a < 0).reduce((s, t) => s + t.a, 0);
-  const ds = res.out.map((t) => t.d).sort(); const fmt = (d) => `${Number(d.slice(8))} ${MSHORT[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
+  const res = ok ? csvCompute() : { out: [], probable: [], bad: C.data.length, dup: 0 }; C.result = res;
+  if (!C.pick) C.pick = new Set();
+  for (const i of [...C.pick]) if (i >= res.probable.length) C.pick.delete(i);
+  const chosen = [...res.out, ...res.probable.filter((_, i) => C.pick.has(i))];
+  const inc = chosen.filter((t) => t.a > 0).reduce((acc, t) => acc + t.a, 0), outS = chosen.filter((t) => t.a < 0).reduce((acc, t) => acc + t.a, 0);
+  const ds = chosen.map((t) => t.d).sort(); const fmt = (d) => `${Number(d.slice(8))} ${MSHORT[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
   const bal = balance(); const after = round2(bal + inc + outS);
+  const np = res.probable.length;
   $("#csv-summary").replaceChildren(...(ok ? [
-    el("div", {}, el("b", { text: `${res.out.length} moviment${res.out.length === 1 ? "o" : "i"} da aggiungere` }), ds.length ? ` dal ${fmt(ds[0])} al ${fmt(ds[ds.length - 1])}` : ""),
-    res.out.length ? el("div", {}, el("span", { class: "pos", text: `entrate ${eurS(round2(inc))}` }), " · ", el("span", { class: "neg", text: `uscite ${eurS(round2(outS))}` })) : null,
-    res.dup ? el("div", { text: res.dup === 1 ? "1 già presente: lo salto." : `${res.dup} già presenti: li salto.` }) : null,
+    el("div", {}, el("b", { text: `${chosen.length} moviment${chosen.length === 1 ? "o" : "i"} da aggiungere` }), ds.length ? ` dal ${fmt(ds[0])} al ${fmt(ds[ds.length - 1])}` : ""),
+    chosen.length ? el("div", {}, el("span", { class: "pos", text: `entrate ${eurS(round2(inc))}` }), " · ", el("span", { class: "neg", text: `uscite ${eurS(round2(outS))}` })) : null,
+    res.dup ? el("div", { text: res.dup === 1 ? "1 già presente con la stessa data: lo salto." : `${res.dup} già presenti con la stessa data: li salto.` }) : null,
+    np ? el("div", { class: "warn", text: np === 1 ? "1 probabile doppione (stesso importo, data vicina): controllalo qui sotto." : `${np} probabili doppioni (stesso importo, data vicina): controllali qui sotto.` }) : null,
     res.bad ? el("div", { class: "muted", text: res.bad === 1 ? "1 riga senza data o importo validi: la ignoro." : `${res.bad} righe senza data o importo validi: le ignoro.` }) : null,
-    res.out.length ? el("div", {}, "Saldo del conto: ", el("b", { text: eur(bal) }), " → ", el("b", { text: eur(after) })) : null,
+    chosen.length ? el("div", {}, "Saldo del conto: ", el("b", { text: eur(bal) }), " → ", el("b", { text: eur(after) })) : null,
     C.style === "en" ? el("div", { class: "muted small", text: "Importi letti con il punto come separatore dei decimali." }) : null,
   ].filter(Boolean) : [el("div", { class: "neg", text: "Scegli almeno le colonne Data e Importo (oppure Uscite/Entrate)." })]));
-  $("#csv-preview").replaceChildren(...(res.out.length ? [el("div", { class: "dayhead" }, el("span", { text: "Anteprima" }), el("span", { text: res.out.length > 8 ? `prime 8 di ${res.out.length}` : "" })),
+  $("#csv-probable").replaceChildren(...(np ? [
+    el("div", { class: "dayhead" }, el("span", { text: "Probabili doppioni" }), el("span", { text: "spunta per importarli lo stesso" })),
+    ...res.probable.map((t, i) => {
+      const cb = el("input", { type: "checkbox", "aria-label": `Importa lo stesso ${t.n || ""} ${eurS(t.a)} del ${fmt(t.d)}` }); cb.checked = C.pick.has(i);
+      cb.addEventListener("change", () => { if (cb.checked) C.pick.add(i); else C.pick.delete(i); csvRender(); });
+      const mc = catById(t.match.c);
+      return el("label", { class: "probrow" }, cb,
+        el("span", { style: "min-width:0" }, el("div", { class: "t1", text: `${t.n || "(senza descrizione)"} · ${fmt(t.d)}` }),
+          el("div", { class: "t2", text: `In Prisma: «${t.match.n || mc.name}» del ${fmt(t.match.d)}${t.days ? ` (${t.days} giorn${t.days === 1 ? "o" : "i"} di differenza)` : ""}` })),
+        el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) }));
+    })] : []));
+  $("#csv-preview").replaceChildren(...(res.out.length ? [el("div", { class: "dayhead" }, el("span", { text: "Nuovi movimenti" }), el("span", { text: res.out.length > 8 ? `primi 8 di ${res.out.length}` : "" })),
     ...res.out.slice(0, 8).map((t) => { const c = catById(t.c); return el("div", { class: "tx" }, icon(c), el("span", { style: "min-width:0" }, el("div", { class: "t1", text: t.n || c.name }), el("div", { class: "t2", text: `${fmt(t.d)} · ${c.name}` })), el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) })); })] : []));
-  const go = $("#csv-go"); go.disabled = !res.out.length; go.textContent = res.out.length ? `Importa ${res.out.length} moviment${res.out.length === 1 ? "o" : "i"}` : "Niente da importare";
+  C.chosen = chosen;
+  const go = $("#csv-go"); go.disabled = !chosen.length; go.textContent = chosen.length ? `Importa ${chosen.length} moviment${chosen.length === 1 ? "o" : "i"}` : "Niente da importare";
 }
 async function doCsvImport(e) {
   e.preventDefault();
-  const res = S.csv && S.csv.result; if (!res || !res.out.length) return;
+  const chosen = S.csv && S.csv.chosen; if (!chosen || !chosen.length) return;
   $("#csv-sheet").hidden = true;
   const byMonth = new Map(); const ids = []; let k = 0;
-  for (const t of res.out) { const rec = { i: "c" + uid6() + (k++).toString(36), d: t.d, a: t.a, c: t.c, n: t.n }; ids.push(rec.i); const mk = monthKeyOf(t.d); byMonth.set(mk, [...(byMonth.get(mk) || []), rec]); }
+  for (const t of chosen) { const rec = { i: "c" + uid6() + (k++).toString(36), d: t.d, a: t.a, c: t.c, n: t.n }; ids.push(rec.i); const mk = monthKeyOf(t.d); byMonth.set(mk, [...(byMonth.get(mk) || []), rec]); }
   try {
     for (const [mk, list] of [...byMonth].sort()) await writeMonth(mk, [...cloneTx(mk), ...list]);
     const idSet = new Set(ids); const months = [...byMonth.keys()];
@@ -2214,7 +2246,7 @@ function bind() {
   $("#btn-csv-month").addEventListener("click", () => exportCsv("period"));
   $("#csv-file").addEventListener("change", (e) => { openCsvImport(e.target.files[0]); e.target.value = ""; });
   $("#csv-form").addEventListener("submit", doCsvImport);
-  $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", csvRender);
+  $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", () => { S.csv.pick = new Set(); csvRender(); });
   for (const b of $$("[data-close]")) b.addEventListener("click", () => { $("#" + b.dataset.close).hidden = true; });
   for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).hidden = true; closeDrawer(); } });
