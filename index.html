@@ -135,7 +135,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .ring-center .amt { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.45rem, 7vw, 1.85rem); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.05; }
 .ring-center .lbl { font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); font-weight: 800; max-width: 130px; }
 .stats3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.stats3 div { background: var(--bg); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stats3 div { background: var(--bg); border-radius: 16px; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .stats3 .k { font-size: 0.7rem; color: var(--muted); font-weight: 700; }
 .stats3 .v { font-family: var(--font-display); font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .legend { display: flex; flex-direction: column; }
@@ -152,6 +152,10 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .subvoci .lrow { padding: 6px 0; grid-template-columns: 34px 1fr auto; gap: 10px; }
 .subvoci .ic { width: 34px; height: 34px; font-size: 0.9rem; }
 .lrow .chev { color: var(--muted); font-size: 0.8rem; margin-left: 4px; }
+.vchips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 2px; margin: 0 -2px; }
+.vchips::-webkit-scrollbar { display: none; }
+.vchips .chipbtn { flex: none; }
+.stats3 .v.sm { font-size: 0.82rem; } .stats3 .v.xs { font-size: 0.72rem; }
 .filterchip { display: inline-flex; align-items: center; gap: 6px; border: 0; background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 7px 12px; font-weight: 700; font-size: 0.82rem; }
 .linkbtn { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 6px 0; align-self: flex-start; }
 
@@ -539,7 +543,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.6</div>
+      <div class="small muted">Prisma · versione 2.7</div>
     </div>
   </section>
 </main>
@@ -986,11 +990,13 @@ function voceRow(v, cat, total, onPick, div) {
     el("span", { style: "min-width:0" }, el("div", { class: "nm", text: v.label }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${Math.min(100, p).toFixed(1)}%` }))),
     el("span", { class: "rt" }, el("b", { text: eur0(val) }), el("span", { text: `${v.count} ${v.count === 1 ? "volta" : "volte"} · ${p < 1 ? "<1" : Math.round(p)}%` })));
 }
-function openVoce(catId, v, per) {
+function goLista(f, per) {
   if (per) setPer(per);
-  S.lf = { c: catId, key: v.key, label: v.label }; S.search = ""; $("#search").value = "";
+  S.lf = f; S.search = ""; $("#search").value = "";
   if (location.hash === "#lista") renderAll(); else location.hash = "lista";
 }
+function openVoce(catId, v, per) { goLista({ c: catId, key: v.key, label: v.label }, per); }
+function openCatList(catId) { goLista({ c: catId, key: null, label: catById(catId).name }); }
 
 /* ---------- render: panoramica ---------- */
 function renderRing() {
@@ -1013,7 +1019,7 @@ function renderRing() {
       const seg = sv("circle", { cx: 110, cy: 110, r: R, class: "ring-seg", "stroke-width": SW,
         "stroke-dasharray": `${draw} ${C - draw}`, "stroke-dashoffset": String(-(off + gap / 2)), transform: "rotate(-90 110 110)",
         style: `stroke:${color};opacity:${dim}` });
-      if (c) seg.addEventListener("click", () => { S.sel = S.sel === c ? null : c; S.legendAll = false; renderPanoramica(); });
+      if (c) seg.addEventListener("click", () => openCatList(c));
       else seg.style.cursor = "default";
       nodes.push(seg); off += len;
     }
@@ -1029,11 +1035,9 @@ function renderRing() {
     center.setAttribute("aria-label", `Uscite ${perOf(S.per)}: ${eur(total)}`);
   }
   const t = perTotals(S.per);
-  $("#stats3").replaceChildren(
-    el("div", {}, el("span", { class: "k", text: "Entrate" }), el("span", { class: "v pos", text: eurS0(t.inc) })),
-    el("div", {}, el("span", { class: "k", text: "Uscite" }), el("span", { class: "v neg", text: eurS0(t.out) })),
-    el("div", {}, el("span", { class: "k", text: "Netto" }), el("span", { class: "v " + (t.net >= 0 ? "pos" : "neg"), text: eurS0(t.net) })),
-  );
+  const fit = (txt) => (txt.length >= 11 ? " xs" : txt.length >= 9 ? " sm" : "");
+  const stat = (k, v, cls) => { const txt = eurS0(v); return el("div", {}, el("span", { class: "k", text: k }), el("span", { class: "v " + cls + fit(txt), text: txt })); };
+  $("#stats3").replaceChildren(stat("Entrate", t.inc, "pos"), stat("Uscite", t.out, "neg"), stat("Netto", t.net, t.net >= 0 ? "pos" : "neg"));
   const more = $("#legend-more");
   $("#legend-back").hidden = !S.sel;
   if (S.sel) {
@@ -1050,14 +1054,14 @@ function renderRing() {
   const shown = S.legendAll ? rows : rows.slice(0, 6);
   $("#legend").replaceChildren(...shown.map(([c, v]) => {
     const cat = catById(c); const p = total ? (v / total) * 100 : 0;
-    return el("button", { class: "lrow", type: "button", "aria-pressed": String(S.sel === c), onclick: () => { S.sel = S.sel === c ? null : c; S.legendAll = false; renderPanoramica(); } },
+    return el("button", { class: "lrow", type: "button", "aria-label": `${cat.name}: ${eur(v)}. Tocca per vedere le spese.`, onclick: () => openCatList(c) },
       icon(cat),
       el("span", { style: "min-width:0" }, el("div", { class: "nm", text: cat.name }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${p.toFixed(1)}%` }))),
       el("span", { class: "rt" }, el("b", { text: eur0(v) }), el("span", { text: `${p < 1 ? "<1" : Math.round(p)}%` })));
   }));
   more.hidden = rows.length <= 6;
   more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${rows.length} categorie`;
-  $("#ring-note").textContent = excluded ? `Esclus${excluded === 1 ? "o 1 movimento" : `i ${excluded} movimenti`} sopra 5.000 € (prestiti, estinzioni): sono nei totali qui sopra.` : "";
+  $("#ring-note").textContent = (rows.length ? "Tocca una categoria per vedere le sue spese. " : "") + (excluded ? `Esclus${excluded === 1 ? "o 1 movimento" : `i ${excluded} movimenti`} sopra 5.000 € (prestiti, estinzioni): sono nei totali qui sopra.` : "");
 }
 function cumDaily(P) {
   const n = daysBetween(P.start, P.end) + 1; const daily = new Array(n + 1).fill(0);
@@ -1183,12 +1187,23 @@ function renderLista() {
     return;
   }
   if (S.lf) {
-    const f = S.lf; const list = perTx(S.per).filter((t) => t.c === f.c && vkey(t.n) === f.key).sort(byDateDesc);
+    const f = S.lf; const cat = catById(f.c);
+    const all = perTx(S.per).filter((t) => t.c === f.c);
+    const list = (f.key ? all.filter((t) => vkey(t.n) === f.key) : all).sort(byDateDesc);
     const sum = round2(list.reduce((acc, t) => acc + t.a, 0));
-    $("#list-sub").replaceChildren(
-      el("button", { class: "filterchip", type: "button", onclick: () => { S.lf = null; renderLista(); }, "aria-label": `Togli il filtro ${f.label}` }, `${f.label} ✕`),
-      el("div", { style: "margin-top:8px", text: `${catById(f.c).name} · ${perLabel(S.per)}: ${list.length} moviment${list.length === 1 ? "o" : "i"}, totale ${eurS(sum)}. Scorri i periodi per confrontare.` }));
-    box.replaceChildren(...(list.length ? groupByDay(list) : [el("div", { class: "empty", text: `Nessun movimento «${f.label}» ${perOf(S.per)}.` })]));
+    const head = [
+      el("div", { class: "row wrap", style: "gap:8px" },
+        el("button", { class: "filterchip", type: "button", onclick: () => { S.lf = null; renderLista(); }, "aria-label": `Togli il filtro ${cat.name}` }, `${cat.emoji || ""} ${cat.name} ✕`),
+        f.key ? el("button", { class: "filterchip", type: "button", onclick: () => { S.lf = { c: f.c, key: null, label: cat.name }; renderLista(); }, "aria-label": `Togli il filtro ${f.label}` }, `${f.label} ✕`) : null),
+      el("div", { style: "margin-top:8px", text: `${perLabel(S.per)}: ${list.length} moviment${list.length === 1 ? "o" : "i"}, totale ${eurS(sum)}. Scorri i periodi per confrontare.` }),
+    ];
+    if (!f.key) {
+      const vs = voci(all, f.c);
+      if (vs.length > 1) head.push(el("div", { class: "vchips", role: "group", "aria-label": "Filtra per voce" }, ...vs.slice(0, 15).map((v) =>
+        el("button", { type: "button", class: "chipbtn", onclick: () => { S.lf = { c: f.c, key: v.key, label: v.label }; renderLista(); } }, `${v.label} · ${eur0(Math.abs(v.total))}`))));
+    }
+    $("#list-sub").replaceChildren(...head);
+    box.replaceChildren(...(list.length ? groupByDay(list) : [el("div", { class: "empty", text: `Nessun movimento ${f.key ? "«" + f.label + "»" : "in " + cat.name} ${perOf(S.per)}.` })]));
     return;
   }
   const list = perTx(S.per).sort(byDateDesc);
