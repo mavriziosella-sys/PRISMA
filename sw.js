@@ -1,6 +1,6 @@
 // Prisma: keeps the app usable offline.
 // Serves the saved copy first, refreshes it in the background: a new version appears at the next launch.
-const CACHE = "prisma-v18";
+const CACHE = "prisma-v19";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", (e) => {

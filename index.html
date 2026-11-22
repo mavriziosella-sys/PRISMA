@@ -574,7 +574,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.5</div>
+      <div class="small muted">Prisma · versione 3.5.1</div>
     </div>
   </section>
 </main>
@@ -1455,7 +1455,10 @@ function renderAll() {
 }
 
 /* ---------- movement sheet ---------- */
+const isThirdParty = (id) => { const c = cats().find((x) => x.id === id); return !!c && c.kind !== "in" && (c.id === "terzi" || norm(c.name).includes("conto terzi")); };
+function syncPersonBox() { $("#tx-person-box").hidden = !(S.txKind === "out" && (isThirdParty(S.txCat) || (S.tx && S.tx.p))); }
 function renderTxCats() {
+  syncPersonBox();
   const list = cats().filter((c) => (!c.archived || c.id === S.txCat) && (c.kind === "any" || c.kind === "giro" || c.kind === S.txKind));
   $("#tx-cats").replaceChildren(...list.map((c) => el("button", { type: "button", "aria-pressed": String(c.id === S.txCat), onclick: () => { S.txCat = c.id; renderTxCats(); } },
     icon(c), el("span", { class: "nm", text: c.name }))));
@@ -1463,7 +1466,7 @@ function renderTxCats() {
 function setTxKind(k) {
   S.txKind = k;
   $("#kind-out").setAttribute("aria-pressed", String(k === "out")); $("#kind-in").setAttribute("aria-pressed", String(k === "in"));
-  $("#tx-form").className = "panel k-" + k; $("#tx-person-box").hidden = k !== "out";
+  $("#tx-form").className = "panel k-" + k;
   if (!S.tx) $("#tx-sheet-title").textContent = k === "in" ? "Nuova entrata" : "Nuova spesa";
   const c = cats().find((x) => x.id === S.txCat); if (c && c.kind !== "any" && c.kind !== "giro" && c.kind !== k) S.txCat = null;
   renderTxCats();
@@ -1496,7 +1499,7 @@ async function saveTx(e) {
   const rec = { i: S.tx ? S.tx.i : "n" + uid6(), d, a: round2(S.txKind === "in" ? Math.abs(v) : -Math.abs(v)), c: S.txCat, n: $("#tx-note").value.trim(), ...(S.tx && S.tx.k ? { k: S.tx.k } : {}) };
   if (S.tx && S.tx.k && rec.n && (rec.n !== S.tx.n || rec.c !== S.tx.c)) saveLearned([[S.tx.k, rec.n, rec.c, rec.a]]);
   const who = $("#tx-person").value.trim();
-  if (who && S.txKind === "out") { rec.p = who; if (S.tx && S.tx.ok && norm(S.tx.p) === norm(who)) rec.ok = S.tx.ok; }
+  if (who && !$("#tx-person-box").hidden) { rec.p = who; if (S.tx && S.tx.ok && norm(S.tx.p) === norm(who)) rec.ok = S.tx.ok; }
   const old = S.tx; closeTx();
   try {
     if (old) {
