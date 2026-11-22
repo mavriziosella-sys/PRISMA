@@ -86,7 +86,12 @@ h2 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; mar
 .tabs button[aria-selected="true"] { background: #fff; color: var(--hero-a); }
 .monthpill { display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.13); border-radius: 18px; padding: 6px; }
 .monthpill button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.15); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
-.monthpill .m { font-family: var(--font-display); font-weight: 700; font-size: 1.08rem; text-align: center; text-transform: capitalize; }
+.monthpill .perbtn { flex: 1; min-width: 0; width: auto; height: auto; border-radius: 14px; background: transparent; display: block; padding: 2px 6px; }
+.monthpill .m { font-family: var(--font-display); font-weight: 700; font-size: 1.08rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.monthpill .m::after { content: " ▾"; font-size: 0.75em; opacity: 0.75; }
+.perseg { display: flex; gap: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 999px; padding: 3px; margin-top: -4px; }
+.perseg button { flex: 1; border: 0; background: transparent; color: rgba(255, 255, 255, 0.88); font-weight: 700; font-size: 0.78rem; padding: 7px 4px; border-radius: 999px; }
+.perseg button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.95); color: var(--hero-a); }
 .monthpill .s { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; opacity: 0.8; font-weight: 700; }
 .quick { display: flex; align-items: center; gap: 6px; background: var(--surface); border-radius: 18px; padding: 5px 5px 5px 14px; box-shadow: 0 10px 24px rgba(20, 8, 70, 0.18); }
 .quick input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 16px; padding: 9px 0; outline: none; }
@@ -306,9 +311,12 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       </nav>
     </div>
     <div class="monthpill" id="monthpill">
-      <button data-month-step="-1" aria-label="Mese precedente"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-      <div><div class="m" id="month-title">—</div><div class="s" id="month-sub"></div></div>
-      <button data-month-step="1" aria-label="Mese successivo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+      <button data-month-step="-1" aria-label="Periodo precedente"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button type="button" class="perbtn" id="per-open" aria-label="Scegli il periodo"><div class="m" id="month-title">—</div><div class="s" id="month-sub"></div></button>
+      <button data-month-step="1" aria-label="Periodo successivo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="perseg" id="perseg" role="group" aria-label="Unità di tempo">
+      <button type="button" data-pt="day">Giorno</button><button type="button" data-pt="month">Mese</button><button type="button" data-pt="year">Anno</button><button type="button" data-pt="custom">Periodo…</button>
     </div>
     <form class="quick" id="quick-form" autocomplete="off">
       <input id="quick" type="text" enterkeyhint="done" autocapitalize="sentences" aria-label="Scrivi un movimento" placeholder="Scrivi: caffè 1,50 · ieri benzina 60">
@@ -359,11 +367,11 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <button class="btn" id="btn-nudge-backup">Fai backup</button>
     </div>
 
-    <div class="card pace">
+    <div class="card pace" id="pace-card">
       <div class="eyebrow" id="pace-label">Speso questo mese</div>
       <div class="pace-head"><div class="big" id="pace-total">—</div><span class="pill" id="pace-delta"></span></div>
       <div id="pace-chart"></div>
-      <div class="legend-inline"><span><i style="background:var(--accent)"></i><span id="pace-leg-cur">Questo mese</span></span><span><i style="background:var(--muted)"></i>Media 3 mesi prima</span></div>
+      <div class="legend-inline"><span><i style="background:var(--accent)"></i><span id="pace-leg-cur">Questo mese</span></span><span><i style="background:var(--muted)"></i><span id="pace-leg-cmp">Media 3 mesi prima</span></span></div>
     </div>
 
     <div class="card balance">
@@ -415,7 +423,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <div class="small" id="bring-proj"></div>
     </div>
     <div class="card">
-      <h2>Tetti mensili</h2>
+      <h2 id="caps-h">Tetti mensili</h2>
       <div id="caps"></div>
     </div>
     <div class="card">
@@ -474,7 +482,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
     <div class="card">
       <h2 id="rank-title">Dove vanno i soldi</h2>
-      <div class="seg" role="group" aria-label="Periodo"><button id="seg-month" aria-pressed="true">Mese</button><button id="seg-avg" aria-pressed="false">Media 12 mesi</button></div>
+      <div class="seg" role="group" aria-label="Periodo"><button id="seg-month" aria-pressed="true">Periodo</button><button id="seg-avg" aria-pressed="false">Media 12 mesi</button></div>
       <div class="small muted" id="rank-sub"></div>
       <div id="rank" class="legend"></div>
     </div>
@@ -508,7 +516,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     <div class="card">
       <h2>Esporta e importa CSV</h2>
       <div class="small muted">Il CSV si apre in Excel, Numbers o Google Fogli. L'importazione <b>aggiunge</b> movimenti a quelli che ci sono già: va bene per l'export di Monefy, per l'estratto conto della banca o per un CSV di Prisma.</div>
-      <div class="row wrap"><button id="btn-csv-all" class="btn">Esporta tutto</button><button id="btn-csv-month" class="btn">Esporta il mese</button></div>
+      <div class="row wrap"><button id="btn-csv-all" class="btn">Esporta tutto</button><button id="btn-csv-month" class="btn">Esporta il periodo</button></div>
       <label class="btn primary block">Importa da CSV<input id="csv-file" type="file" hidden></label>
     </div>
     <div class="card">
@@ -523,7 +531,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.4.1</div>
+      <div class="small muted">Prisma · versione 2.5</div>
     </div>
   </section>
 </main>
@@ -633,6 +641,18 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
   </form>
 </div>
 
+<!-- period sheet -->
+<div id="per-sheet" class="sheet" hidden>
+  <form class="panel" id="per-form" autocomplete="off">
+    <div class="grab"></div>
+    <div class="row between"><h2>Scegli il periodo</h2><button type="button" class="btn" data-close="per-sheet" aria-label="Chiudi" style="padding:9px 12px">✕</button></div>
+    <div class="chips" id="per-quick"></div>
+    <div class="field"><span>Periodo personalizzato: dal / al</span><div class="dates"><input type="date" id="per-from" aria-label="Dal"><input type="date" id="per-to" aria-label="Al"></div></div>
+    <button type="submit" class="btn primary block">Mostra questo periodo</button>
+    <label class="field" for="per-goto"><span id="per-goto-label">Oppure vai a una data</span><input type="date" id="per-goto"></label>
+  </form>
+</div>
+
 <!-- csv import sheet -->
 <div id="csv-sheet" class="sheet" hidden>
   <form class="panel" id="csv-form" autocomplete="off">
@@ -711,10 +731,46 @@ const STOP = new Set(["per", "con", "del", "della", "dei", "delle", "una", "uno"
   "pos", "addebito", "addebiti", "diretto", "sdd", "bonifico", "pagamento", "pagam", "carta", "acquisto", "presso", "spa", "srl", "comm", "italia", "operazione"]);
 const uid6 = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
 
+/* ---------- periods: day, month, year or custom range ---------- */
+const dtOf = (s) => new Date(s + "T12:00:00");
+const addDays = (s, n) => { const d = dtOf(s); d.setDate(d.getDate() + n); return iso(d); };
+const daysBetween = (a, b) => Math.round((dtOf(b) - dtOf(a)) / 86400000);
+const perMonth = (key) => ({ type: "month", start: `${key}-01`, end: `${key}-${pad(daysIn(key))}` });
+const perDay = (d) => ({ type: "day", start: d, end: d });
+const perYear = (y) => ({ type: "year", start: `${y}-01-01`, end: `${y}-12-31` });
+const perCustom = (a, b) => (a <= b ? { type: "custom", start: a, end: b } : { type: "custom", start: b, end: a });
+function stepPer(P, n) {
+  if (P.type === "day") return perDay(addDays(P.start, n));
+  if (P.type === "month") return perMonth(addMonths(P.start.slice(0, 7), n));
+  if (P.type === "year") return perYear(Number(P.start.slice(0, 4)) + n);
+  const len = daysBetween(P.start, P.end) + 1;
+  return perCustom(addDays(P.start, n * len), addDays(P.end, n * len));
+}
+const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtD = (s, withYear) => { const d = dtOf(s); return `${d.getDate()} ${MSHORT[d.getMonth()]}${withYear ? " " + d.getFullYear() : ""}`; };
+function perLabel(P) {
+  if (P.type === "day") {
+    if (P.start === todayISO()) return "Oggi"; if (P.start === shiftDays(-1)) return "Ieri";
+    const d = dtOf(P.start); return cap1(`${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${P.start.slice(0, 4) === todayISO().slice(0, 4) ? "" : " " + P.start.slice(0, 4)}`);
+  }
+  if (P.type === "month") return cap1(monthLabel(P.start.slice(0, 7)));
+  if (P.type === "year") return P.start.slice(0, 4);
+  return `${fmtD(P.start, P.start.slice(0, 4) !== P.end.slice(0, 4))} – ${fmtD(P.end, true)}`;
+}
+function perOf(P) {
+  if (P.type === "month") return "di " + monthName(P.start.slice(0, 7));
+  if (P.type === "year") return "del " + P.start.slice(0, 4);
+  if (P.type === "day") return P.start === todayISO() ? "di oggi" : P.start === shiftDays(-1) ? "di ieri" : "del " + fmtD(P.start);
+  return "del periodo";
+}
+const perWord = (P) => (P.type === "month" ? "mese" : P.type === "year" ? "anno" : P.type === "day" ? "giorno" : "periodo");
+const perKeys = (P) => { const out = []; let k = P.start.slice(0, 7); const e = P.end.slice(0, 7); while (k <= e) { out.push(k); k = addMonths(k, 1); } return out; };
+const perContains = (P, d) => d >= P.start && d <= P.end;
+
 /* ---------- state ---------- */
 const S = {
   cfg: null, months: new Map(), loaded: false,
-  view: "panoramica", month: curMonthKey(), sel: null, legendAll: false, search: "",
+  view: "panoramica", month: curMonthKey(), per: perMonth(curMonthKey()), sel: null, legendAll: false, search: "",
   chartMode: "month", inclBig: false, bseg: "tetti", goal: null, gmove: null, asset: null, assetType: "investimenti", goalHue: 190,
   tx: null, txKind: "out", txCat: null, cat: null, catKind: "out", catHue: 260,
   index: null, indexSig: "", pendingRestore: null,
@@ -772,6 +828,16 @@ function monthTx(key) { return (S.months.get(key) || []).slice().sort(byDateDesc
 function byDateDesc(a, b) { return a.d < b.d ? 1 : a.d > b.d ? -1 : (a.i < b.i ? 1 : -1); }
 const isGiro = (t) => catById(t.c).kind === "giro";
 function totals(key) { let inc = 0, out = 0; for (const t of S.months.get(key) || []) { if (isGiro(t)) continue; if (t.a > 0) inc += t.a; else out += t.a; } return { inc: round2(inc), out: round2(out), net: round2(inc + out) }; }
+function perTx(P) { const out = []; for (const k of perKeys(P)) for (const t of S.months.get(k) || []) if (t.d >= P.start && t.d <= P.end) out.push(t); return out; }
+function perTotals(P) { let inc = 0, out = 0; for (const t of perTx(P)) { if (isGiro(t)) continue; if (t.a > 0) inc += t.a; else out += t.a; } return { inc: round2(inc), out: round2(out), net: round2(inc + out) }; }
+function perCatSpend(P, inclBig) {
+  const m = new Map(); let excluded = 0;
+  for (const t of perTx(P)) { const v = spendOf(t); if (!v) continue; if (!inclBig && Math.abs(t.a) >= BIG) { excluded++; continue; } m.set(t.c, (m.get(t.c) || 0) + v); }
+  return { m, excluded };
+}
+function perNetByCat(P) { const m = new Map(); for (const t of perTx(P)) m.set(t.c, (m.get(t.c) || 0) - t.a); return m; }
+const capFactor = (P) => (P.type === "month" ? 1 : P.type === "year" ? 12 : (daysBetween(P.start, P.end) + 1) / 30.44);
+function setPer(P) { S.per = P; S.month = P.end.slice(0, 7); S.sel = null; }
 function spentBy(key, catId) { let s = 0; for (const t of S.months.get(key) || []) if (t.c === catId) s += t.a; return round2(-s); }
 function usage(catId) { let n = 0; for (const arr of S.months.values()) for (const t of arr) if (t.c === catId) n++; return n; }
 /* what a movement adds to "spending": outflows, minus refunds landing in a spending category */
@@ -875,7 +941,8 @@ function showView() {
   $("#hero-main").hidden = !ready;
   $("#btn-altro").hidden = !ready;
   $("#btn-altro").setAttribute("aria-pressed", String(S.view === "altro"));
-  $("#monthpill").hidden = !ready || S.view === "altro";
+  $("#monthpill").hidden = !ready || S.view === "altro" || S.view === "patrimonio";
+  $("#perseg").hidden = !ready || S.view === "altro" || S.view === "patrimonio";
   $("#quick-form").hidden = !ready || S.view === "altro";
   $("#hero-hint").hidden = !needSetup;
   $("#fabs").hidden = !ready;
@@ -883,14 +950,15 @@ function showView() {
 
 /* ---------- render: header ---------- */
 function renderHeader() {
-  $("#month-title").textContent = monthLabel(S.month);
-  const n = (S.months.get(S.month) || []).length;
+  $("#month-title").textContent = perLabel(S.per);
+  for (const b of $$("#perseg button")) b.setAttribute("aria-pressed", String(b.dataset.pt === S.per.type));
+  const n = perTx(S.per).length;
   $("#month-sub").textContent = n === 1 ? "1 movimento" : `${n} movimenti`;
 }
 
 /* ---------- render: panoramica ---------- */
 function renderRing() {
-  const { m, excluded } = catSpend([S.month], false);
+  const { m, excluded } = perCatSpend(S.per, false);
   const rows = [...m].filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
   const total = rows.reduce((s, [, v]) => s + v, 0);
   if (S.sel && !m.has(S.sel)) S.sel = null;
@@ -921,10 +989,10 @@ function renderRing() {
     center.replaceChildren(icon(c), el("div", { class: "amt", text: eur0(m.get(S.sel)) }), el("div", { class: "lbl", text: c.name }));
     center.setAttribute("aria-label", `${c.name}: ${eur(m.get(S.sel))}. Tocca per tornare al totale.`);
   } else {
-    center.replaceChildren(el("div", { class: "lbl", text: "Uscite di " + monthName(S.month) }), el("div", { class: "amt", text: eur0(total) }), el("div", { class: "lbl", text: rows.length ? `${rows.length} categorie` : "nessuna spesa" }));
-    center.setAttribute("aria-label", `Uscite di ${monthName(S.month)}: ${eur(total)}`);
+    center.replaceChildren(el("div", { class: "lbl", text: "Uscite " + perOf(S.per) }), el("div", { class: "amt", text: eur0(total) }), el("div", { class: "lbl", text: rows.length ? `${rows.length} categori${rows.length === 1 ? "a" : "e"}` : "nessuna spesa" }));
+    center.setAttribute("aria-label", `Uscite ${perOf(S.per)}: ${eur(total)}`);
   }
-  const t = totals(S.month);
+  const t = perTotals(S.per);
   $("#stats3").replaceChildren(
     el("div", {}, el("span", { class: "k", text: "Entrate" }), el("span", { class: "v pos", text: eurS0(t.inc) })),
     el("div", {}, el("span", { class: "k", text: "Uscite" }), el("span", { class: "v neg", text: eurS0(t.out) })),
@@ -943,48 +1011,71 @@ function renderRing() {
   more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${rows.length} categorie`;
   $("#ring-note").textContent = excluded ? `Esclus${excluded === 1 ? "o 1 movimento" : `i ${excluded} movimenti`} sopra 5.000 € (prestiti, estinzioni): sono nei totali qui sopra.` : "";
 }
-function cumSeries(key) {
-  const dim = daysIn(key); const daily = new Array(dim + 1).fill(0);
-  for (const t of S.months.get(key) || []) {
-    if (Math.abs(t.a) >= BIG) continue;
-    const v = spendOf(t); if (!v) continue;
-    const d = Number(t.d.slice(8)); if (d >= 1 && d <= dim) daily[d] += v;
-  }
-  const cum = [0]; for (let d = 1; d <= dim; d++) cum[d] = cum[d - 1] + daily[d];
-  return { dim, cum };
+function cumDaily(P) {
+  const n = daysBetween(P.start, P.end) + 1; const daily = new Array(n + 1).fill(0);
+  for (const t of perTx(P)) { if (Math.abs(t.a) >= BIG) continue; const v = spendOf(t); if (!v) continue; const i = daysBetween(P.start, t.d) + 1; if (i >= 1 && i <= n) daily[i] += v; }
+  const cum = [0]; for (let i = 1; i <= n; i++) cum[i] = cum[i - 1] + daily[i];
+  return cum;
+}
+function cumMonthly(y) {
+  const cum = [0];
+  for (let m = 1; m <= 12; m++) { let v = 0; for (const t of S.months.get(`${y}-${pad(m)}`) || []) if (Math.abs(t.a) < BIG) v += spendOf(t); cum[m] = cum[m - 1] + v; }
+  return cum;
 }
 function renderPace() {
-  const key = S.month; const cur = cumSeries(key); const dim = cur.dim;
-  const prev = [1, 2, 3].map((n) => cumSeries(addMonths(key, -n)));
-  const avg = [0]; for (let d = 1; d <= dim; d++) avg[d] = prev.reduce((s, p) => s + p.cum[Math.min(d, p.dim)], 0) / 3;
-  const ck = curMonthKey();
-  const upto = key === ck ? Number(todayISO().slice(8)) : key < ck ? dim : 0;
-  const spent = upto ? cur.cum[upto] : 0;
-  $("#pace-label").textContent = key === ck ? "Speso finora questo mese" : key < ck ? `Speso a ${monthName(key)}` : `${monthLabel(key)}: mese futuro`;
-  $("#pace-leg-cur").textContent = key === ck ? "Questo mese" : monthName(key).replace(/^./, (c) => c.toUpperCase());
+  const P = S.per; const today = todayISO();
+  if (P.type === "day") { $("#pace-card").hidden = true; return; }
+  $("#pace-card").hidden = false;
+  let N, cur, cmp, upto, ticks, tickLab, cmpName, curName, title, vs;
+  if (P.type === "year") {
+    const y = Number(P.start.slice(0, 4)), cy = Number(today.slice(0, 4));
+    N = 12; cur = cumMonthly(y); cmp = cumMonthly(y - 1);
+    upto = y === cy ? Number(today.slice(5, 7)) : y < cy ? 12 : 0;
+    ticks = [1, 4, 7, 10, 12]; tickLab = (i) => MSHORT[i - 1];
+    cmpName = String(y - 1); curName = String(y); vs = "l'anno prima";
+    title = y === cy ? "Speso finora quest'anno" : y < cy ? `Speso nel ${y}` : `${y}: anno futuro`;
+  } else {
+    N = daysBetween(P.start, P.end) + 1; cur = cumDaily(P);
+    if (P.type === "month") {
+      const prev = [1, 2, 3].map((n) => cumDaily(stepPer(P, -n)));
+      cmp = [0]; for (let i = 1; i <= N; i++) cmp[i] = prev.reduce((acc, c) => acc + c[Math.min(i, c.length - 1)], 0) / 3;
+      cmpName = "Media 3 mesi prima"; vs = "la media"; curName = cap1(monthName(P.start.slice(0, 7)));
+    } else { cmp = cumDaily(stepPer(P, -1)); cmpName = "Periodo precedente"; vs = "il periodo prima"; curName = "Questo periodo"; }
+    upto = today > P.end ? N : today < P.start ? 0 : daysBetween(P.start, today) + 1;
+    const q = (f) => Math.max(1, Math.round(1 + (N - 1) * f));
+    ticks = [...new Set([1, q(0.25), q(0.5), q(0.75), N])];
+    tickLab = (i) => (P.type === "month" ? String(i) : fmtD(addDays(P.start, i - 1)));
+    const ongoing = upto > 0 && upto < N;
+    if (P.type === "month") { const ck = curMonthKey(), k = P.start.slice(0, 7); title = k === ck ? "Speso finora questo mese" : k < ck ? `Speso a ${monthName(k)}` : `${monthLabel(k)}: mese futuro`; if (k === ck) curName = "Questo mese"; }
+    else title = ongoing ? "Speso finora nel periodo" : upto ? "Speso nel periodo" : "Periodo futuro";
+  }
+  const spent = upto ? cur[upto] : 0; const ref = upto ? cmp[Math.min(upto, cmp.length - 1)] : 0;
+  $("#pace-label").textContent = title;
+  $("#pace-leg-cur").textContent = curName; $("#pace-leg-cmp").textContent = cmpName;
   $("#pace-total").textContent = eur0(spent);
   const pill = $("#pace-delta");
-  if (upto && avg[upto] > 0) {
-    const diff = spent - avg[upto];
+  if (upto && ref > 0) {
+    const diff = spent - ref;
     pill.className = "pill " + (diff > 0 ? "neg" : "pos");
-    pill.textContent = `${diff > 0 ? "+" : "−"}${nf0.format(Math.abs(diff))} € ${diff > 0 ? "sopra" : "sotto"} la media`;
+    pill.textContent = `${diff > 0 ? "+" : "−"}${nf0.format(Math.abs(diff))} € ${diff > 0 ? "sopra" : "sotto"} ${vs}`;
     pill.hidden = false;
   } else pill.hidden = true;
   const W = 320, H = 140, pl = 6, pr = 6, pt = 10, pb = 22;
-  const maxV = Math.max(1, ...cur.cum.slice(0, upto + 1), ...avg) * 1.08;
-  const x = (d) => pl + ((d - 1) / Math.max(1, dim - 1)) * (W - pl - pr);
+  const cmpN = Math.min(N, cmp.length - 1);
+  const maxV = Math.max(1, ...cur.slice(0, upto + 1), ...cmp.slice(0, cmpN + 1)) * 1.08;
+  const x = (i) => pl + ((i - 1) / Math.max(1, N - 1)) * (W - pl - pr);
   const y = (v) => pt + (1 - v / maxV) * (H - pt - pb);
-  const path = (arr, n) => { let s = ""; for (let d = 1; d <= n; d++) s += `${d === 1 ? "M" : "L"}${x(d).toFixed(1)},${y(arr[d]).toFixed(1)}`; return s; };
-  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Spesa cumulata: ${eur0(spent)}${upto && avg[upto] ? `, media ${eur0(avg[upto])}` : ""}` });
+  const path = (arr, n) => { let d = ""; for (let i = 1; i <= n; i++) d += `${i === 1 ? "M" : "L"}${x(i).toFixed(1)},${y(arr[i]).toFixed(1)}`; return d; };
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Spesa cumulata: ${eur0(spent)}${ref ? `, confronto ${eur0(ref)}` : ""}` });
   for (const f of [0.5, 1]) svg.append(sv("line", { x1: pl, x2: W - pr, y1: y(maxV * f / 1.08), y2: y(maxV * f / 1.08), stroke: "var(--line)", "stroke-width": 1 }));
-  svg.append(sv("path", { d: path(avg, dim), class: "avg" }));
+  if (cmpN >= 1) svg.append(sv("path", { d: path(cmp, cmpN), class: "avg" }));
   if (upto >= 1) {
-    const line = path(cur.cum, upto);
+    const line = path(cur, upto);
     svg.append(sv("path", { d: `${line}L${x(upto).toFixed(1)},${y(0)}L${x(1).toFixed(1)},${y(0)}Z`, class: "area" }));
     svg.append(sv("path", { d: line, class: "cur" }));
-    svg.append(sv("circle", { cx: x(upto), cy: y(cur.cum[upto]), r: 6, class: "dot" }));
+    svg.append(sv("circle", { cx: x(upto), cy: y(cur[upto]), r: 6, class: "dot" }));
   }
-  for (const d of [1, 8, 15, 22, dim]) { const tx = sv("text", { x: x(d), y: H - 6, "text-anchor": d === 1 ? "start" : d === dim ? "end" : "middle" }); tx.textContent = String(d); svg.append(tx); }
+  ticks.forEach((i, j) => { const tx = sv("text", { x: x(i), y: H - 6, "text-anchor": j === 0 ? "start" : j === ticks.length - 1 ? "end" : "middle" }); tx.textContent = tickLab(i); svg.append(tx); });
   $("#pace-chart").replaceChildren(svg);
 }
 function renderBalance() {
@@ -1003,7 +1094,7 @@ function renderBalance() {
   const show = S.months.size > 0 && (days == null || days >= 14);
   $("#backup-nudge").hidden = !show;
   if (show) $("#backup-nudge-text").textContent = days == null ? "Non hai ancora fatto un backup dei dati." : `Ultimo backup ${days} giorni fa.`;
-  $("#checkup-title").textContent = `Check-up di ${monthName(S.month)} con Claude`;
+  $("#checkup-title").textContent = `Check-up ${perOf(S.per)} con Claude`;
 }
 function renderPanoramica() { renderRing(); renderPace(); renderBalance(); }
 function renderCheckResult() {
@@ -1043,16 +1134,20 @@ function renderLista() {
     box.replaceChildren(...(hits.length ? groupByDay(hits.slice(0, 150)) : [el("div", { class: "empty", text: "Nessun movimento trovato." })]));
     return;
   }
-  const list = monthTx(S.month);
-  $("#list-sub").textContent = list.length ? `Movimenti di ${monthLabel(S.month)}. Tocca per modificare.` : "";
-  box.replaceChildren(...(list.length ? groupByDay(list) : [el("div", { class: "empty", text: "Nessun movimento in questo mese. Usa − o + per aggiungerne uno." })]));
+  const list = perTx(S.per).sort(byDateDesc);
+  const sum = round2(list.reduce((acc, t) => acc + t.a, 0));
+  $("#list-sub").textContent = list.length ? `${perLabel(S.per)}: ${list.length} moviment${list.length === 1 ? "o" : "i"}, saldo del periodo ${eurS(sum)}. Tocca per modificare.` : "";
+  box.replaceChildren(...(list.length ? groupByDay(list) : [el("div", { class: "empty", text: `Nessun movimento ${perOf(S.per)}. Usa − o + per aggiungerne uno.` })]));
 }
 
 /* ---------- render: budget ---------- */
 function renderBudget() {
-  const key = S.month; const capped = cats().filter((c) => !c.archived && Number(c.cap) > 0);
+  const P = S.per; const key = P.start.slice(0, 7); const isM = P.type === "month"; const f = capFactor(P);
+  const capped = cats().filter((c) => !c.archived && Number(c.cap) > 0);
+  const net = perNetByCat(P);
   let spentT = 0, capT = 0;
-  const rows = capped.map((c) => { const s = Math.max(0, spentBy(key, c.id)); spentT += s; capT += Number(c.cap); return [c, s]; });
+  const rows = capped.map((c) => { const sp = Math.max(0, round2(net.get(c.id) || 0)); const cp = round2(Number(c.cap) * f); spentT += sp; capT += cp; return [c, sp, cp]; });
+  $("#caps-h").textContent = isM ? "Tetti mensili" : `Tetti ${perOf(P)}`;
   const p = capT ? spentT / capT : 0;
   const R = 52, C = 2 * Math.PI * R;
   const color = p > 1 ? "var(--neg)" : p >= 0.8 ? "var(--warn)" : "var(--pos)";
@@ -1060,27 +1155,27 @@ function renderBudget() {
     sv("circle", { cx: 66, cy: 66, r: R, class: "val", stroke: color, "stroke-dasharray": `${Math.min(p, 1) * C} ${C}` }));
   $("#bring-pct").textContent = `${Math.round(p * 100)}%`;
   $("#bring-spent").textContent = eur(spentT);
-  $("#bring-sub").textContent = capT ? `su ${nf0.format(capT)} € di tetti in ${capped.length} categorie` : "Nessun tetto impostato.";
+  $("#bring-sub").textContent = capT ? `su ${nf0.format(capT)} € di tetti in ${capped.length} categorie${isM ? "" : " (tetti mensili riportati al periodo)"}` : "Nessun tetto impostato.";
   const proj = $("#bring-proj");
   const day = Number(todayISO().slice(8));
-  if (key === curMonthKey() && day >= 3 && capT) {
+  if (isM && key === curMonthKey() && day >= 3 && capT) {
     const f = round2((spentT / day) * daysIn(key));
     proj.className = "small " + (f > capT ? "neg" : "pos");
     proj.textContent = `Al ritmo attuale arriveresti a circa ${nf0.format(f)} € a fine mese${f > capT ? `: ${nf0.format(f - capT)} € oltre i tetti.` : ", dentro i tetti."}`;
   } else proj.textContent = "";
-  $("#caps").replaceChildren(...(rows.length ? rows.map(([c, s]) => {
-    const cap = Number(c.cap); const q = s / cap; const cls = q > 1 ? "over" : q >= 0.8 ? "warn" : "";
+  $("#caps").replaceChildren(...(rows.length ? rows.map(([c, s, cap]) => {
+    const q = cap ? s / cap : 0; const cls = q > 1 ? "over" : q >= 0.8 ? "warn" : "";
     const sub = q > 1 ? el("div", { class: "sub neg", text: `Sforato di ${eur(s - cap)}` }) : el("div", { class: "sub " + (cls ? "warn" : "pos"), text: `Restano ${eur(cap - s)}` });
     return el("button", { class: "caprow " + cls, type: "button", onclick: () => openCat(c) }, icon(c),
       el("span", { style: "min-width:0" },
         el("div", { class: "top" }, el("span", { class: "t1", text: c.name }), el("b", { text: `${nf0.format(s)} / ${nf0.format(cap)} €` })),
         el("div", { class: "bar" }, el("i", { style: `width:${Math.min(100, q * 100).toFixed(1)}%` })), sub));
   }) : [el("div", { class: "empty", text: "Nessun tetto. Aprine uno da «Senza tetto» qui sotto." })]));
-  const { m } = catSpend([key], true);
+  const { m } = perCatSpend(P, true);
   const others = cats().filter((c) => !c.archived && c.kind === "out" && !(Number(c.cap) > 0)).map((c) => [c, m.get(c.id) || 0]).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
   $("#nocaps").replaceChildren(...(others.length ? others.map(([c, v]) => el("button", { class: "catrow", type: "button", onclick: () => openCat(c, true) }, icon(c),
-    el("span", { style: "min-width:0" }, el("div", { class: "t1", text: c.name }), el("div", { class: "t2", text: eur(v) + " questo mese" })),
-    el("span", { class: "chip", text: "+ tetto" }))) : [el("div", { class: "empty", text: "Nessuna spesa fuori dai tetti in questo mese." })]));
+    el("span", { style: "min-width:0" }, el("div", { class: "t1", text: c.name }), el("div", { class: "t2", text: `${eur(v)} ${perOf(P)}` })),
+    el("span", { class: "chip", text: "+ tetto" }))) : [el("div", { class: "empty", text: `Nessuna spesa fuori dai tetti ${perOf(P)}.` })]));
 }
 
 /* ---------- render: analisi ---------- */
@@ -1089,13 +1184,14 @@ function renderAnalisi() {
   const data = keys.map((k) => { let inc = 0, out = 0; for (const t of S.months.get(k) || []) { if (isGiro(t) || (!S.inclBig && Math.abs(t.a) >= BIG)) continue; if (t.a > 0) inc += t.a; else out -= t.a; } return { k, inc, out }; });
   const max = Math.max(1, ...data.map((d) => Math.max(d.inc, d.out)));
   $("#bars").replaceChildren(el("div", { class: "bars", role: "group", "aria-label": "Entrate e uscite per mese" }, data.map((d) =>
-    el("button", { class: "bcol", type: "button", "aria-pressed": String(d.k === S.month), "aria-label": `${monthLabel(d.k)}: entrate ${eur(d.inc)}, uscite ${eur(d.out)}`, onclick: () => { S.month = d.k; renderAll(); } },
+    el("button", { class: "bcol", type: "button", "aria-pressed": String(S.per.type === "month" && d.k === S.per.start.slice(0, 7)), "aria-label": `${monthLabel(d.k)}: entrate ${eur(d.inc)}, uscite ${eur(d.out)}`, onclick: () => { setPer(perMonth(d.k)); renderAll(); } },
       el("div", { class: "pair" }, el("i", { class: "in", style: `height:${((d.inc / max) * 100).toFixed(1)}%` }), el("i", { class: "out", style: `height:${((d.out / max) * 100).toFixed(1)}%` })),
       el("span", { text: monthShort(d.k) })))));
-  const sel = data.find((d) => d.k === S.month);
+  const sel = S.per.type === "month" ? data.find((d) => d.k === S.per.start.slice(0, 7)) : null;
+  const pt = perTotals(S.per);
   $("#bars-sel").replaceChildren(sel
     ? el("span", {}, el("b", { text: monthLabel(sel.k).replace(/^./, (c) => c.toUpperCase()) + ": " }), el("span", { class: "pos", text: "+" + eur0(sel.inc) }), "  ", el("span", { class: "neg", text: "−" + eur0(sel.out) }), "  ", el("span", { class: sel.inc - sel.out >= 0 ? "pos" : "neg", text: `(netto ${eurS(round2(sel.inc - sel.out))})` }))
-    : el("span", { class: "muted", text: `${monthLabel(S.month)} è fuori dagli ultimi 12 mesi.` }));
+    : el("span", {}, el("b", { text: perLabel(S.per) + ": " }), el("span", { class: "pos", text: eurS0(pt.inc) }), "  ", el("span", { class: "neg", text: eurS0(pt.out) }), "  ", el("span", { class: pt.net >= 0 ? "pos" : "neg", text: `(netto ${eurS(pt.net)})` })));
   const full = data.slice(0, 11); // the current month is still running
   const ai = full.reduce((s, d) => s + d.inc, 0) / full.length, ao = full.reduce((s, d) => s + d.out, 0) / full.length;
   $("#avg3").replaceChildren(
@@ -1104,11 +1200,11 @@ function renderAnalisi() {
     el("div", {}, el("div", { class: "k", text: "Risparmio medio" }), el("div", { class: "v " + (ai - ao >= 0 ? "pos" : "neg"), text: eur0(ai - ao) })));
   const avgMode = S.chartMode === "avg";
   $("#seg-month").setAttribute("aria-pressed", String(!avgMode)); $("#seg-avg").setAttribute("aria-pressed", String(avgMode));
-  const { m } = catSpend(avgMode ? full : [S.month], S.inclBig);
+  const { m } = avgMode ? catSpend(full, S.inclBig) : perCatSpend(S.per, S.inclBig);
   const div = avgMode ? full.length : 1;
   const rows = [...m].map(([c, v]) => [c, v / div]).filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
   const tot = rows.reduce((s, [, v]) => s + v, 0);
-  $("#rank-title").textContent = avgMode ? "Dove vanno i soldi, media al mese" : `Dove vanno i soldi a ${monthName(S.month)}`;
+  $("#rank-title").textContent = avgMode ? "Dove vanno i soldi, media al mese" : `Dove vanno i soldi ${perOf(S.per)}`;
   $("#rank-sub").textContent = rows.length ? `Totale ${eur0(tot)}${avgMode ? " al mese (ultimi 11 mesi completi)" : ""}. Le categorie con tetto mostrano il limite.` : "";
   const mx = Math.max(1, ...rows.map(([, v]) => v));
   $("#rank").replaceChildren(...(rows.length ? rows.map(([c, v]) => {
@@ -1132,7 +1228,7 @@ function renderAltro() {
   }
   $("#cat-list").replaceChildren(...out);
   const ta = $("#coach-notes"); if (document.activeElement !== ta) ta.value = S.cfg.notes || "";
-  $("#btn-csv-month").textContent = `Esporta ${monthLabel(S.month)}`;
+  $("#btn-csv-month").textContent = `Esporta ${S.per.type === "custom" ? "il periodo" : perLabel(S.per).toLowerCase() === "oggi" ? "oggi" : perLabel(S.per)}`;
   const lb = S.cfg.lastBackup;
   $("#backup-info").textContent = `I dati sono salvati solo su questo telefono. ${lb ? `Ultimo backup: ${daysSince(lb) === 0 ? "oggi" : daysSince(lb) + " giorni fa"}.` : "Non hai ancora fatto un backup."} Salvalo in File o iCloud.`;
 }
@@ -1384,45 +1480,49 @@ async function startFresh() {
 function askPersist() { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (_) {} }
 
 /* ---------- check-up summary for Claude ---------- */
-function buildCheckupPrompt(key) {
-  const prev = [1, 2, 3].map((n) => addMonths(key, -n));
-  const isCur = key === curMonthKey();
+function buildCheckupPrompt(P) {
+  const isM = P.type === "month"; const w = perWord(P);
+  const prevs = isM ? [1, 2, 3].map((n) => stepPer(P, -n)) : [stepPer(P, -1)];
+  const isCur = perContains(P, todayISO()); const f = capFactor(P);
+  const net = perNetByCat(P); const prevNets = prevs.map(perNetByCat);
+  const cmpName = isM ? "media 3 mesi prima" : `${w} prima`;
   const lines = [];
   for (const c of cats().filter((c) => c.kind !== "in" && c.kind !== "giro")) {
-    const m = spentBy(key, c.id); const avg = round2(prev.reduce((s, k) => s + spentBy(k, c.id), 0) / 3);
+    const m = round2(net.get(c.id) || 0); const avg = round2(prevNets.reduce((acc, n) => acc + (n.get(c.id) || 0), 0) / prevNets.length);
     if (Math.abs(m) < 0.5 && Math.abs(avg) < 0.5) continue;
-    lines.push(`- ${c.name}: mese ${nf2.format(m)} € | media 3 mesi prima ${nf2.format(avg)} €${Number(c.cap) > 0 ? ` | tetto ${nf0.format(c.cap)} €` : ""}`);
+    lines.push(`- ${c.name}: ${w} ${nf2.format(m)} € | ${cmpName} ${nf2.format(avg)} €${Number(c.cap) > 0 ? ` | tetto ${nf0.format(Number(c.cap) * f)} €` : ""}`);
   }
-  const incLines = [];
-  for (const c of cats().filter((c) => c.kind !== "out" && c.kind !== "giro")) { const v = round2((S.months.get(key) || []).filter((t) => t.c === c.id && t.a > 0).reduce((s, t) => s + t.a, 0)); if (v > 0.5) incLines.push(`- ${c.name}: ${nf2.format(v)} €`); }
-  const big = monthTx(key).filter((t) => t.a < 0 && !isGiro(t)).sort((a, b) => a.a - b.a).slice(0, 8).map((t) => `- ${t.d} ${t.n || ""} (${catById(t.c).name}): ${nf2.format(t.a)} €`);
-  const tt = totals(key);
+  const tx = perTx(P); const incM = new Map();
+  for (const t of tx) { const k = catById(t.c).kind; if (t.a > 0 && k !== "out" && k !== "giro") incM.set(t.c, (incM.get(t.c) || 0) + t.a); }
+  const incLines = [...incM].map(([c, v]) => `- ${catById(c).name}: ${nf2.format(v)} €`);
+  const big = tx.filter((t) => t.a < 0 && !isGiro(t)).sort((a, b) => a.a - b.a).slice(0, 8).map((t) => `- ${t.d} ${t.n || ""} (${catById(t.c).name}): ${nf2.format(t.a)} €`);
+  const tt = perTotals(P);
   return [
     "Fammi da consulente di budget personale. Rispondi in italiano, dandomi del tu, in modo diretto e concreto.",
-    "Analizza il mio mese usando SOLO i numeri qui sotto: non inventare cifre.",
+    `Analizza il mio ${w} usando SOLO i numeri qui sotto: non inventare cifre.`,
     "Parla di spese, budget, debiti e risparmio; non consigliarmi prodotti finanziari o investimenti specifici.",
-    isCur ? `Il mese è in corso (oggi è il ${todayISO()}): i totali non sono definitivi.` : "Il mese è concluso.",
+    isCur ? `Il ${w} è in corso (oggi è il ${todayISO()}): i totali non sono definitivi.` : `Il ${w} è concluso.`,
     "",
     "Formato (massimo 220 parole):",
-    "### Com'è andato il mese — due o tre frasi",
-    "### Dove sto sforando — tetti superati o vicini e voci cresciute di più rispetto alla media",
-    "### Tre cose da fare — tre azioni pratiche per il resto del mese o il prossimo",
+    `### Com'è andato il ${w} — due o tre frasi`,
+    `### Dove sto sforando — tetti superati o vicini e voci cresciute di più rispetto a: ${cmpName}`,
+    "### Tre cose da fare — tre azioni pratiche per le prossime settimane",
     "",
     "La mia situazione e i miei obiettivi:",
     (S.cfg.notes || "(nessuna nota)"),
     "",
-    `MESE: ${monthLabel(key)}`,
+    `PERIODO: ${perLabel(P)} (dal ${P.start} al ${P.end})`,
     `Saldo attuale del conto: ${nf2.format(balance())} €`,
-    `Totali del mese: entrate ${nf2.format(tt.inc)} €, uscite ${nf2.format(tt.out)} €, netto ${nf2.format(tt.net)} €`,
-    "Mesi precedenti:", ...prev.map((k) => `- ${monthLabel(k)}: entrate ${nf2.format(totals(k).inc)} €, uscite ${nf2.format(totals(k).out)} €`),
+    `Totali del periodo: entrate ${nf2.format(tt.inc)} €, uscite ${nf2.format(tt.out)} €, netto ${nf2.format(tt.net)} €`,
+    "Periodi precedenti:", ...prevs.map((q) => { const t2 = perTotals(q); return `- ${perLabel(q)}: entrate ${nf2.format(t2.inc)} €, uscite ${nf2.format(t2.out)} €`; }),
     "Uscite per categoria (valori positivi = soldi usciti):", ...(lines.length ? lines : ["- nessuna"]),
     "Entrate per categoria:", ...(incLines.length ? incLines : ["- nessuna"]),
-    "Uscite più grandi del mese:", ...(big.length ? big : ["- nessuna"]),
+    `Uscite più grandi del ${w}:`, ...(big.length ? big : ["- nessuna"]),
     ...goalLines(), ...nwLines(),
   ].join("\n");
 }
 async function copySummary() {
-  const text = buildCheckupPrompt(S.month); const st = $("#copy-status"); const box = $("#copy-box");
+  const text = buildCheckupPrompt(S.per); const st = $("#copy-status"); const box = $("#copy-box");
   box.replaceChildren();
   try {
     await navigator.clipboard.writeText(text);
@@ -1693,15 +1793,16 @@ async function shareFile(file, title) {
 /* ---------- CSV export (Italian Excel: ; separator, decimal comma) ---------- */
 const csvCell = (v) => { const s = String(v == null ? "" : v); return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 async function exportCsv(scope) {
-  const keys = scope === "month" ? [S.month] : [...S.months.keys()].sort();
+  const list = (scope === "period" ? perTx(S.per) : allTx()).slice().sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
   const rows = [["Data", "Tipo", "Categoria", "Importo", "Descrizione"]]; let n = 0;
-  for (const k of keys) for (const t of (S.months.get(k) || []).slice().sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0))) {
+  for (const t of list) {
     const c = catById(t.c);
     rows.push([`${t.d.slice(8)}/${t.d.slice(5, 7)}/${t.d.slice(0, 4)}`, c.kind === "giro" ? "Giroconto" : t.a >= 0 ? "Entrata" : "Spesa", c.name, t.a.toFixed(2).replace(".", ","), t.n || ""]); n++;
   }
   if (!n) { toast("Nessun movimento da esportare."); return; }
   const text = "﻿" + rows.map((r) => r.map(csvCell).join(";")).join("\r\n");
-  const name = scope === "month" ? `prisma-movimenti-${S.month}.csv` : `prisma-movimenti-tutti-${todayISO()}.csv`;
+  const P = S.per;
+  const name = scope !== "period" ? `prisma-movimenti-tutti-${todayISO()}.csv` : P.type === "month" ? `prisma-movimenti-${P.start.slice(0, 7)}.csv` : P.type === "year" ? `prisma-movimenti-${P.start.slice(0, 4)}.csv` : P.type === "day" ? `prisma-movimenti-${P.start}.csv` : `prisma-movimenti-${P.start}_${P.end}.csv`;
   if (await shareFile(new File([text], name, { type: "text/csv" }), "Movimenti Prisma")) toast(`Esportati ${n} movimenti.`);
 }
 
@@ -1870,11 +1971,54 @@ async function doCsvImport(e) {
   } catch (_) {}
 }
 
+/* ---------- period sheet and swipe ---------- */
+function firstDate() { let d = S.cfg && S.cfg.startDate ? S.cfg.startDate : todayISO(); for (const k of S.months.keys()) { const f = `${k}-01`; if (f < d) { const arr = S.months.get(k); for (const t of arr) if (t.d < d) d = t.d; } } return d; }
+function openPerSheet() {
+  const t = todayISO(); const ck = curMonthKey(); const y = Number(t.slice(0, 4));
+  const dow = (dtOf(t).getDay() + 6) % 7; // Monday = 0
+  const quick = [
+    ["Oggi", perDay(t)], ["Ieri", perDay(shiftDays(-1))], ["Questa settimana", perCustom(addDays(t, -dow), addDays(t, 6 - dow))], ["Ultimi 7 giorni", perCustom(addDays(t, -6), t)],
+    ["Questo mese", perMonth(ck)], ["Mese scorso", perMonth(addMonths(ck, -1))], ["Ultimi 30 giorni", perCustom(addDays(t, -29), t)], ["Ultimi 3 mesi", perCustom(`${addMonths(ck, -2)}-01`, t)],
+    ["Quest'anno", perYear(y)], ["Anno scorso", perYear(y - 1)], ["Tutto", perCustom(firstDate(), t)],
+  ];
+  const same = (a, b) => a.type === b.type && a.start === b.start && a.end === b.end;
+  $("#per-quick").replaceChildren(...quick.map(([lab, P]) => el("button", { type: "button", class: "chipbtn", "aria-pressed": String(same(P, S.per)), onclick: () => { setPer(P); $("#per-sheet").hidden = true; renderAll(); } }, lab)));
+  $("#per-from").value = S.per.start; $("#per-to").value = S.per.end; $("#per-goto").value = "";
+  $("#per-goto-label").textContent = S.per.type === "month" ? "Oppure vai al mese di una data" : S.per.type === "year" ? "Oppure vai all'anno di una data" : "Oppure vai a un giorno";
+  $("#per-sheet").hidden = false; $("#per-form").scrollTop = 0;
+}
+function setupSwipe() {
+  const main = $("main.app"); let sx = 0, sy = 0, st = 0, ok = false;
+  main.addEventListener("touchstart", (e) => { ok = e.touches.length === 1 && !e.target.closest("input, textarea, select, .bars, .ring-wrap"); if (!ok) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+  main.addEventListener("touchend", (e) => {
+    if (!ok || !S.cfg || S.view === "altro" || S.view === "patrimonio") return;
+    const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - st < 700 && Math.abs(dx) > 70 && Math.abs(dy) < 50) { setPer(stepPer(S.per, dx < 0 ? 1 : -1)); renderAll(); }
+  }, { passive: true });
+}
+
 /* ---------- bindings ---------- */
 function bind() {
   for (const b of $$(".tabs button")) b.addEventListener("click", () => { location.hash = b.dataset.view; });
   $("#btn-altro").addEventListener("click", () => { location.hash = S.view === "altro" ? "panoramica" : "altro"; });
-  for (const b of $$("[data-month-step]")) b.addEventListener("click", () => { S.month = addMonths(S.month, Number(b.dataset.monthStep)); S.sel = null; renderAll(); });
+  for (const b of $$("[data-month-step]")) b.addEventListener("click", () => { setPer(stepPer(S.per, Number(b.dataset.monthStep))); renderAll(); });
+  for (const b of $$("#perseg button")) b.addEventListener("click", () => {
+    const t = b.dataset.pt; const anchor = perContains(S.per, todayISO()) ? todayISO() : S.per.end;
+    if (t === "custom") { openPerSheet(); return; }
+    setPer(t === "day" ? perDay(anchor) : t === "month" ? perMonth(anchor.slice(0, 7)) : perYear(Number(anchor.slice(0, 4)))); renderAll();
+  });
+  $("#per-open").addEventListener("click", openPerSheet);
+  $("#per-form").addEventListener("submit", (e) => {
+    e.preventDefault(); const a = $("#per-from").value, b2 = $("#per-to").value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b2)) { toast("Scegli le date dal / al."); return; }
+    setPer(perCustom(a, b2)); $("#per-sheet").hidden = true; renderAll();
+  });
+  $("#per-goto").addEventListener("change", (e) => {
+    const d = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    const t = S.per.type; setPer(t === "month" ? perMonth(d.slice(0, 7)) : t === "year" ? perYear(Number(d.slice(0, 4))) : perDay(d));
+    $("#per-sheet").hidden = true; renderAll();
+  });
+  setupSwipe();
   $("#quick-form").addEventListener("submit", quickSubmit);
   $("#fab-out").addEventListener("click", () => openTx(null, { kind: "out" }));
   $("#fab-in").addEventListener("click", () => openTx(null, { kind: "in" }));
@@ -1926,13 +2070,13 @@ function bind() {
   $("#asset-form").addEventListener("submit", saveAsset); $("#asset-delete").addEventListener("click", deleteAsset);
   $("#btn-nw-paste").addEventListener("click", applyNwPaste);
   $("#btn-csv-all").addEventListener("click", () => exportCsv("all"));
-  $("#btn-csv-month").addEventListener("click", () => exportCsv("month"));
+  $("#btn-csv-month").addEventListener("click", () => exportCsv("period"));
   $("#csv-file").addEventListener("change", (e) => { openCsvImport(e.target.files[0]); e.target.value = ""; });
   $("#csv-form").addEventListener("submit", doCsvImport);
   $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", csvRender);
   for (const b of $$("[data-close]")) b.addEventListener("click", () => { $("#" + b.dataset.close).hidden = true; });
-  for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet"]) $("#" + id).hidden = true; } });
+  for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "per-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "per-sheet"]) $("#" + id).hidden = true; } });
 }
 
 /* ---------- boot ---------- */
