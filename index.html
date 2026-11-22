@@ -26,6 +26,7 @@
   --line: #ebe8f3;
   --accent: #6236e8;
   --accent-soft: #efe9ff;
+  --accent-ink: #ffffff;
   --pos: #179a69;
   --neg: #e8465f;
   --warn: #d98a0b;
@@ -43,7 +44,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0e0c16; --surface: #1a1726; --ink: #eeeaf8; --muted: #a29cba; --line: #2a2638;
-    --accent: #a78bfa; --accent-soft: #2a2245; --pos: #3fd39a; --neg: #ff7a8c; --warn: #f2b544;
+    --accent: #a78bfa; --accent-soft: #2a2245; --accent-ink: #160f33; --pos: #3fd39a; --neg: #ff7a8c; --warn: #f2b544;
     --hero-a: #2b1a6b; --hero-b: #432597; --hero-c: #6136c4;
     --shadow: 0 0 0 1px #262236; --ic-s: 45%; --ic-l: 24%; --seg-l: 64%;
     color-scheme: dark;
@@ -90,7 +91,7 @@ h2 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; mar
 .quick { display: flex; align-items: center; gap: 6px; background: var(--surface); border-radius: 18px; padding: 5px 5px 5px 14px; box-shadow: 0 10px 24px rgba(20, 8, 70, 0.18); }
 .quick input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-size: 16px; padding: 9px 0; outline: none; }
 .quick input::placeholder { color: var(--muted); }
-.quick button { width: 42px; height: 42px; border-radius: 14px; border: 0; background: var(--accent); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.quick button { width: 42px; height: 42px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; }
 .hero-hint { font-size: 0.78rem; opacity: 0.85; margin-top: -6px; }
 
 /* ---------- layout ---------- */
@@ -101,7 +102,7 @@ section.view { display: flex; flex-direction: column; gap: 14px; }
 .row.between { justify-content: space-between; }
 .wrap { flex-wrap: wrap; }
 .btn { border: 1px solid var(--line); background: var(--surface); padding: 11px 16px; border-radius: 14px; font-weight: 700; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.soft { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
 .btn.danger { color: var(--neg); }
 .btn.block { width: 100%; }
@@ -259,14 +260,14 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .fabs { position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 20px; z-index: 15; pointer-events: none; }
 .fab { pointer-events: auto; width: 62px; height: 62px; border-radius: 50%; border: 0; color: #fff; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 12px 26px rgba(30, 10, 60, 0.25); }
 .fab svg.i { width: 30px; height: 30px; stroke-width: 2.8; }
-.fab.out { background: var(--neg); } .fab.in { background: var(--pos); }
+.fab.out { background: #d33a53; } .fab.in { background: #127c55; }
 
 /* ---------- sheets ---------- */
 .sheet { position: fixed; inset: 0; z-index: 20; background: rgba(12, 8, 30, 0.45); display: flex; align-items: flex-end; justify-content: center; }
 .panel { background: var(--surface); width: 100%; max-width: 560px; max-height: 94%; overflow-y: auto; border-radius: 28px 28px 0 0; padding: 10px 18px calc(22px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; }
 .panel > * { flex-shrink: 0; }
 .grab { width: 40px; height: 5px; border-radius: 99px; background: var(--line); align-self: center; }
-.panel.k-out { --kc: var(--neg); } .panel.k-in { --kc: var(--pos); }
+.panel.k-out { --kc: var(--neg); --kbg: #d33a53; } .panel.k-in { --kc: var(--pos); --kbg: #127c55; }
 .amount-in { border: 0 !important; background: transparent !important; text-align: center; font-family: var(--font-display); font-weight: 800; font-size: 2.6rem !important; color: var(--kc); padding: 4px 0 !important; min-height: 0 !important; outline: none; }
 .amount-in::placeholder { color: color-mix(in srgb, var(--kc) 35%, transparent); }
 .catgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 4px; }
@@ -277,7 +278,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .catgrid button[aria-pressed="true"] .ic { box-shadow: 0 0 0 3px var(--kc); }
 .dates { display: flex; gap: 8px; align-items: center; }
 .dates input { flex: 1; min-width: 0; }
-.save { background: var(--kc) !important; border-color: var(--kc) !important; color: #fff !important; padding: 14px !important; font-size: 1rem; }
+.save { background: var(--kbg) !important; border-color: var(--kbg) !important; color: #fff !important; padding: 14px !important; font-size: 1rem; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 30; background: var(--ink); color: var(--surface); padding: 11px 14px; border-radius: 16px; display: flex; gap: 10px; align-items: center; width: max-content; max-width: calc(100% - 32px); font-size: 0.88rem; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); }
 .toast button { border: 0; background: transparent; color: inherit; font-weight: 800; text-decoration: underline; padding: 4px; }
 .progress { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
@@ -522,7 +523,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.4</div>
+      <div class="small muted">Prisma · versione 2.4.1</div>
     </div>
   </section>
 </main>
