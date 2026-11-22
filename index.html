@@ -68,8 +68,15 @@ h2 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; mar
 
 /* ---------- header ---------- */
 .hero { background: linear-gradient(155deg, var(--hero-a) 0%, var(--hero-b) 58%, var(--hero-c) 100%); color: #fff;
-  padding: calc(env(safe-area-inset-top) + 14px) 16px 62px; border-radius: 0 0 30px 30px; }
-.hero-in { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  padding: calc(env(safe-area-inset-top) + 8px) 16px 12px; border-radius: 0 0 26px 26px; }
+.hero-in { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.hbar { display: flex; align-items: center; gap: 10px; }
+.hbar .titles { flex: 1; min-width: 0; text-align: center; }
+.hbar .brand { font-size: 1.3rem; justify-content: center; }
+.hbar .brand .logo { width: 28px; height: 23px; }
+.hbar .vt { font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.82; font-weight: 800; margin-top: 1px; }
+.hero-btn { position: relative; }
+.hero-btn .dot { position: absolute; top: 7px; right: 7px; width: 9px; height: 9px; border-radius: 50%; background: #ffcf4d; box-shadow: 0 0 0 2px var(--hero-b); }
 .hero-top { display: flex; align-items: center; justify-content: space-between; }
 .brand { font-family: var(--font-display); font-weight: 800; font-size: 1.6rem; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; line-height: 1.1; }
 .brand .logo { width: 34px; height: 28px; flex: none; }
@@ -85,8 +92,8 @@ h2 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; mar
 .tabs::-webkit-scrollbar { display: none; }
 .tabs button { flex: 1 0 auto; border: 0; background: rgba(255, 255, 255, 0.13); color: rgba(255, 255, 255, 0.88); padding: 9px 11px; border-radius: 999px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
 .tabs button[aria-selected="true"] { background: #fff; color: var(--hero-a); }
-.monthpill { display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.13); border-radius: 18px; padding: 6px; }
-.monthpill button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.15); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+.monthpill { display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.13); border-radius: 16px; padding: 4px; }
+.monthpill button { width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.15); color: #fff; display: inline-flex; align-items: center; justify-content: center; }
 .monthpill .perbtn { flex: 1; min-width: 0; width: auto; height: auto; border-radius: 14px; background: transparent; display: block; padding: 2px 6px; }
 .monthpill .m { font-family: var(--font-display); font-weight: 700; font-size: 1.08rem; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .monthpill .m::after { content: " ▾"; font-size: 0.75em; opacity: 0.75; }
@@ -100,8 +107,58 @@ h2 { font-family: var(--font-display); font-size: 1.12rem; font-weight: 700; mar
 .quick button { width: 42px; height: 42px; border-radius: 14px; border: 0; background: var(--accent); color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; }
 .hero-hint { font-size: 0.78rem; opacity: 0.85; margin-top: -6px; }
 
+/* ---------- one-screen home ---------- */
+html:has(body.home), body.home { overflow: hidden; height: 100%; overscroll-behavior: none; }
+body.home main.app { height: calc(100dvh - var(--hh, 150px) - 12px); padding-bottom: calc(12px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+body.home #view-panoramica { flex: 1; min-height: 0; }
+.home {
+  --side: 78px;
+  --avail: calc(100dvh - var(--hh, 150px) - 12px - 52px - 62px - 24px - 12px - env(safe-area-inset-bottom));
+  --ringw: calc(min(100vw, 560px) - 32px - 2 * var(--side));
+  --rh: clamp(80px, calc((var(--avail) - var(--ringw)) / 2 - 6px), 116px);
+  --ring: max(150px, min(var(--ringw), calc(var(--avail) - 2 * var(--rh) - 8px)));
+  --cell: var(--rh); gap: 10px !important;
+}
+.homegrid { display: grid; grid-template-columns: var(--side) 1fr 1fr var(--side); grid-template-rows: var(--rh) calc(var(--ring) / 2) calc(var(--ring) / 2) var(--rh); align-items: center; justify-items: center; margin: auto 0; }
+.bub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; background: none; color: var(--ink); padding: 0; min-width: 0; width: 100%; height: 100%; }
+.bub .ic { width: min(50px, calc(var(--cell) * 0.52)); height: min(50px, calc(var(--cell) * 0.52)); font-size: min(1.4rem, calc(var(--cell) * 0.26)); box-shadow: 0 0 0 3px hsl(var(--h) 72% var(--seg-l)); }
+.bub .amt { font-family: var(--font-display); font-weight: 800; font-size: 0.78rem; font-variant-numeric: tabular-nums; line-height: 1; }
+.bub .nm { font-size: 0.6rem; color: var(--muted); font-weight: 600; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.1; }
+.bub.zero .ic { box-shadow: none; opacity: 0.55; } .bub.zero .amt { color: var(--muted); font-weight: 600; }
+.bub.more .ic { background: var(--line); box-shadow: 0 0 0 3px var(--muted); }
+.ringcell { grid-row: 2 / span 2; grid-column: 2 / span 2; position: relative; width: var(--ring); height: var(--ring); }
+.ringcell svg { position: absolute; inset: 3%; width: 94%; height: 94%; overflow: visible; }
+.ringcell .ring-center { inset: 19%; gap: 2px; }
+.ringcell .ring-center .amt { font-size: min(1.75rem, calc(var(--ring) * 0.13)); }
+.ringcell .ring-center .lbl { font-size: 0.58rem; max-width: 100%; }
+.ringcell .ring-center .in { font-size: 0.72rem; font-weight: 800; color: var(--pos); }
+.homebar { display: flex; align-items: center; gap: 14px; }
+.homebar .fab { flex: none; width: 60px; height: 60px; }
+.saldo { flex: 1; min-width: 0; border: 0; background: var(--surface); box-shadow: var(--shadow); border-radius: 20px; padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink); }
+.saldo .k { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.saldo .v { font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.saldo .st { font-size: 0.66rem; font-weight: 700; }
+.home .quick { box-shadow: var(--shadow); }
+
+/* ---------- side drawer ---------- */
+.drawer { position: fixed; inset: 0; z-index: 40; background: rgba(12, 8, 30, 0.45); }
+.drawer-panel { position: absolute; top: 0; bottom: 0; left: 0; width: min(84vw, 340px); background: var(--surface); padding: calc(env(safe-area-inset-top) + 12px) 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; display: flex; flex-direction: column; gap: 10px; box-shadow: 8px 0 30px rgba(0, 0, 0, 0.25); animation: slidein 0.18s ease-out; }
+@keyframes slidein { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .drawer-panel { animation: none; } }
+.dhead { background: linear-gradient(155deg, var(--hero-a), var(--hero-b) 60%, var(--hero-c)); color: #fff; border-radius: 18px; padding: 12px 14px; }
+.dhead .brand { font-size: 1.3rem; } .dhead .brand .logo { width: 28px; height: 23px; }
+.dsec { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 800; margin-top: 4px; }
+.dper { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dper button { border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 14px; padding: 11px 6px; font-weight: 700; font-size: 0.95rem; }
+.dper button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.drange { display: flex; flex-direction: column; gap: 8px; background: var(--bg); border-radius: 16px; padding: 10px; }
+.ditem { display: flex; align-items: center; gap: 12px; border: 0; background: none; color: var(--ink); padding: 10px 8px; border-radius: 12px; font-weight: 700; font-size: 1rem; text-align: left; width: 100%; }
+.ditem[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.ditem .e { width: 28px; text-align: center; font-size: 1.15rem; }
+.dfoot { margin-top: auto; }
+
 /* ---------- layout ---------- */
-main.app { position: relative; max-width: 560px; margin: -46px auto 0; padding: 0 16px calc(122px + env(safe-area-inset-bottom)); }
+main.app { position: relative; max-width: 560px; margin: 12px auto 0; padding: 0 16px calc(122px + env(safe-area-inset-bottom)); }
 section.view { display: flex; flex-direction: column; gap: 14px; }
 .card { background: var(--surface); border-radius: 24px; box-shadow: var(--shadow); padding: 18px; display: flex; flex-direction: column; gap: 12px; }
 .row { display: flex; align-items: center; gap: 10px; }
@@ -303,37 +360,20 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 <body>
 <header class="hero">
   <div class="hero-in">
-    <div class="hero-top">
-      <div>
+    <div class="hbar">
+      <button class="hero-btn" id="btn-menu" aria-label="Menu: periodo e sezioni" hidden><svg class="i" viewBox="0 0 24 24"><path d="M3.5 5h17l-6.5 8v6l-4 2v-8z"/></svg><span class="dot" id="menu-dot" hidden></span></button>
+      <div class="titles">
         <div class="brand"><svg class="logo" viewBox="0 0 40 32" aria-hidden="true"><path d="M2 21 L13 18" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/><path d="M19 17 L36 9" stroke="#f0566b" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L38 14" stroke="#f5a623" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L37 19" stroke="#f0d246" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L36 24" stroke="#2cc48c" stroke-width="2.6" stroke-linecap="round"/><path d="M14 3.5 Q15.5 1.5 17 3.5 L26 26 Q27 28.5 24.5 28.5 L6.5 28.5 Q4 28.5 5 26 Z" fill="#fff"/></svg>Prisma</div>
-        <div class="tagline"><b>P</b>ianifica · <b>R</b>isparmia · <b>I</b>nvesti · <b>S</b>pendi · <b>M</b>onitora · <b>A</b>nalizza</div>
+        <div class="vt" id="view-title"></div>
       </div>
-      <button class="hero-btn" id="btn-altro" aria-label="Categorie, note e backup" aria-pressed="false">
-        <svg class="i" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-      </button>
-    </div>
-    <div id="hero-main">
-      <nav class="tabs" role="tablist" aria-label="Sezioni">
-        <button role="tab" data-view="panoramica" aria-selected="true">Panoramica</button>
-        <button role="tab" data-view="lista" aria-selected="false">Lista</button>
-        <button role="tab" data-view="budget" aria-selected="false">Budget</button>
-        <button role="tab" data-view="patrimonio" aria-selected="false">Patrimonio</button>
-        <button role="tab" data-view="analisi" aria-selected="false">Analisi</button>
-      </nav>
+      <button class="hero-btn" id="btn-search" aria-label="Cerca nei movimenti" hidden><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
     </div>
     <div class="monthpill" id="monthpill">
       <button data-month-step="-1" aria-label="Periodo precedente"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
       <button type="button" class="perbtn" id="per-open" aria-label="Scegli il periodo"><div class="m" id="month-title">—</div><div class="s" id="month-sub"></div></button>
       <button data-month-step="1" aria-label="Periodo successivo"><svg class="i" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
     </div>
-    <div class="perseg" id="perseg" role="group" aria-label="Unità di tempo">
-      <button type="button" data-pt="day">Giorno</button><button type="button" data-pt="month">Mese</button><button type="button" data-pt="year">Anno</button><button type="button" data-pt="custom">Periodo…</button>
-    </div>
-    <form class="quick" id="quick-form" autocomplete="off">
-      <input id="quick" type="text" enterkeyhint="done" autocapitalize="sentences" aria-label="Scrivi un movimento" placeholder="Scrivi: caffè 1,50 · ieri benzina 60">
-      <button type="submit" aria-label="Aggiungi"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
-    </form>
-    <div class="hero-hint" id="hero-hint" hidden>Benvenuto in Prisma: carica i tuoi dati per iniziare.</div>
+    <div class="tagline" id="hero-hint" hidden style="white-space:normal;font-size:.8rem">Benvenuto in Prisma: <b>P</b>ianifica · <b>R</b>isparmia · <b>I</b>nvesti · <b>S</b>pendi · <b>M</b>onitora · <b>A</b>nalizza. Carica i tuoi dati per iniziare.</div>
   </div>
 </header>
 
@@ -360,50 +400,17 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
   </section>
 
-  <!-- panoramica -->
-  <section id="view-panoramica" class="view" hidden>
-    <div class="card">
-      <div class="ring-wrap">
-        <svg id="ring" viewBox="0 0 220 220" aria-hidden="true"></svg>
-        <button class="ring-center" id="ring-center" type="button"></button>
-      </div>
-      <div class="stats3" id="stats3"></div>
-      <button class="linkbtn" id="legend-back" type="button" hidden>← Tutte le categorie</button>
-      <div class="legend" id="legend"></div>
-      <button class="linkbtn" id="legend-more" type="button" hidden></button>
-      <div class="small muted" id="ring-note"></div>
-    </div>
-
-    <div class="banner nudge" id="backup-nudge" hidden>
-      <span id="backup-nudge-text">Non hai ancora fatto un backup.</span>
-      <button class="btn" id="btn-nudge-backup">Fai backup</button>
-    </div>
-
-    <div class="card pace" id="pace-card">
-      <div class="eyebrow" id="pace-label">Speso questo mese</div>
-      <div class="pace-head"><div class="big" id="pace-total">—</div><span class="pill" id="pace-delta"></span></div>
-      <div id="pace-chart"></div>
-      <div class="legend-inline"><span><i style="background:var(--accent)"></i><span id="pace-leg-cur">Questo mese</span></span><span><i style="background:var(--muted)"></i><span id="pace-leg-cmp">Media 3 mesi prima</span></span></div>
-    </div>
-
-    <div class="card balance">
-      <div class="eyebrow">Saldo del conto</div>
-      <div class="big" id="balance">—</div>
-      <span id="check-status" class="tick todo"><span class="dot">!</span><span>Saldo non ancora controllato</span></span>
-      <button id="btn-check" class="btn soft">Controlla con la banca</button>
-      <div id="check-panel" hidden style="display:flex;flex-direction:column;gap:10px">
-        <label class="field" for="bank-balance"><span>Saldo che vedi in banca (€)</span><input id="bank-balance" inputmode="decimal" placeholder="es. 5843,78"></label>
-        <div id="check-result" class="check-result"></div>
-        <div class="row wrap"><button id="btn-adjust" class="btn primary" hidden>Aggiungi rettifica</button><button id="btn-check-close" class="btn">Chiudi</button></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2 id="checkup-title">Check-up del mese con Claude</h2>
-      <div class="small muted">Copio un riepilogo del mese già pronto: lo incolli in una chat con Claude e ricevi l'analisi con tre cose da fare.</div>
-      <div class="row wrap"><button id="btn-copy" class="btn primary">Copia il riepilogo</button><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a></div>
-      <div id="copy-status" class="small"></div>
-      <div id="copy-box"></div>
+  <!-- panoramica: one screen -->
+  <section id="view-panoramica" class="view home" hidden>
+    <div class="homegrid" id="homegrid"></div>
+    <form class="quick" id="quick-form" autocomplete="off">
+      <input id="quick" type="text" enterkeyhint="done" autocapitalize="sentences" aria-label="Scrivi un movimento" placeholder="Scrivi: caffè 1,50 · ieri benzina 60">
+      <button type="submit" aria-label="Aggiungi"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+    </form>
+    <div class="homebar">
+      <button class="fab out" id="home-out" type="button" aria-label="Nuova spesa"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button class="saldo" id="btn-saldo" type="button" aria-label="Saldo del conto e controllo con la banca"><span class="k">Saldo</span><span class="v" id="home-balance">—</span><span class="st" id="home-check"></span></button>
+      <button class="fab in" id="home-in" type="button" aria-label="Nuova entrata"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </div>
   </section>
 
@@ -484,6 +491,12 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 
   <!-- analisi -->
   <section id="view-analisi" class="view" hidden>
+    <div class="card pace" id="pace-card">
+      <div class="eyebrow" id="pace-label">Speso questo mese</div>
+      <div class="pace-head"><div class="big" id="pace-total">—</div><span class="pill" id="pace-delta"></span></div>
+      <div id="pace-chart"></div>
+      <div class="legend-inline"><span><i style="background:var(--accent)"></i><span id="pace-leg-cur">Questo mese</span></span><span><i style="background:var(--muted)"></i><span id="pace-leg-cmp">Media 3 mesi prima</span></span></div>
+    </div>
     <div class="card">
       <h2>Entrate e uscite, ultimi 12 mesi</h2>
       <div class="legend-inline"><span><i style="background:var(--pos);height:8px;width:8px;border-radius:50%"></i>Entrate</span><span><i style="background:var(--neg);height:8px;width:8px;border-radius:50%"></i>Uscite</span></div>
@@ -497,6 +510,13 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <div class="seg" role="group" aria-label="Periodo"><button id="seg-month" aria-pressed="true">Periodo</button><button id="seg-avg" aria-pressed="false">Media 12 mesi</button></div>
       <div class="small muted" id="rank-sub"></div>
       <div id="rank" class="legend"></div>
+    </div>
+    <div class="card" id="checkup-card">
+      <h2 id="checkup-title">Check-up del mese con Claude</h2>
+      <div class="small muted">Copio un riepilogo del periodo già pronto: lo incolli in una chat con Claude e ricevi l'analisi con tre cose da fare.</div>
+      <div class="row wrap"><button id="btn-copy" class="btn primary">Copia il riepilogo</button><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a></div>
+      <div id="copy-status" class="small"></div>
+      <div id="copy-box"></div>
     </div>
   </section>
 
@@ -543,7 +563,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.7</div>
+      <div class="small muted">Prisma · versione 2.8</div>
     </div>
   </section>
 </main>
@@ -653,16 +673,53 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
   </form>
 </div>
 
-<!-- period sheet -->
-<div id="per-sheet" class="sheet" hidden>
-  <form class="panel" id="per-form" autocomplete="off">
+<!-- side drawer: period and sections -->
+<div id="drawer" class="drawer" hidden>
+  <nav class="drawer-panel" aria-label="Menu">
+    <div class="dhead">
+      <div class="brand"><svg class="logo" viewBox="0 0 40 32" aria-hidden="true"><path d="M2 21 L13 18" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/><path d="M19 17 L36 9" stroke="#f0566b" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L38 14" stroke="#f5a623" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L37 19" stroke="#f0d246" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L36 24" stroke="#2cc48c" stroke-width="2.6" stroke-linecap="round"/><path d="M14 3.5 Q15.5 1.5 17 3.5 L26 26 Q27 28.5 24.5 28.5 L6.5 28.5 Q4 28.5 5 26 Z" fill="#fff"/></svg>Prisma</div>
+      <div class="tagline"><b>P</b>ianifica · <b>R</b>isparmia · <b>I</b>nvesti · <b>S</b>pendi · <b>M</b>onitora · <b>A</b>nalizza</div>
+    </div>
+    <div class="dsec">Periodo</div>
+    <div class="dper" id="dper">
+      <button type="button" data-pt="day">Giorno</button><button type="button" data-pt="week">Settimana</button>
+      <button type="button" data-pt="month">Mese</button><button type="button" data-pt="year">Anno</button>
+      <button type="button" data-pt="all">Tutto</button><button type="button" data-pt="custom">Intervallo</button>
+    </div>
+    <div class="drange" id="drange" hidden>
+      <div class="chips" id="per-quick"></div>
+      <div class="dates"><input type="date" id="per-from" aria-label="Dal"><input type="date" id="per-to" aria-label="Al"></div>
+      <button type="button" class="btn primary block" id="per-apply">Mostra questo intervallo</button>
+    </div>
+    <label class="field" for="per-goto"><span>Scegli data</span><input type="date" id="per-goto"></label>
+    <div class="dsec">Sezioni</div>
+    <div id="dnav">
+      <button type="button" class="ditem" data-go="panoramica"><span class="e">🏠</span>Panoramica</button>
+      <button type="button" class="ditem" data-go="lista"><span class="e">📋</span>Movimenti</button>
+      <button type="button" class="ditem" data-go="budget"><span class="e">🎯</span>Budget e obiettivi</button>
+      <button type="button" class="ditem" data-go="patrimonio"><span class="e">💎</span>Patrimonio</button>
+      <button type="button" class="ditem" data-go="analisi"><span class="e">📊</span>Analisi e check-up</button>
+      <button type="button" class="ditem" data-go="altro"><span class="e">⚙️</span>Categorie e backup</button>
+    </div>
+    <div class="banner nudge dfoot" id="backup-nudge" hidden><span id="backup-nudge-text"></span><button class="btn" id="btn-nudge-backup" type="button">Fai backup</button></div>
+  </nav>
+</div>
+
+<!-- balance sheet -->
+<div id="saldo-sheet" class="sheet" hidden>
+  <div class="panel balance">
     <div class="grab"></div>
-    <div class="row between"><h2>Scegli il periodo</h2><button type="button" class="btn" data-close="per-sheet" aria-label="Chiudi" style="padding:9px 12px">✕</button></div>
-    <div class="chips" id="per-quick"></div>
-    <div class="field"><span>Periodo personalizzato: dal / al</span><div class="dates"><input type="date" id="per-from" aria-label="Dal"><input type="date" id="per-to" aria-label="Al"></div></div>
-    <button type="submit" class="btn primary block">Mostra questo periodo</button>
-    <label class="field" for="per-goto"><span id="per-goto-label">Oppure vai a una data</span><input type="date" id="per-goto"></label>
-  </form>
+    <div class="row between"><div class="eyebrow">Saldo del conto</div><button type="button" class="btn" data-close="saldo-sheet" aria-label="Chiudi" style="padding:9px 12px">✕</button></div>
+    <div class="big" id="balance">—</div>
+    <span id="check-status" class="tick todo"><span class="dot">!</span><span>Saldo non ancora controllato</span></span>
+    <button id="btn-check" class="btn soft">Controlla con la banca</button>
+    <div id="check-panel" hidden style="display:flex;flex-direction:column;gap:10px">
+      <label class="field" for="bank-balance"><span>Saldo che vedi in banca (€)</span><input id="bank-balance" inputmode="decimal" placeholder="es. 5843,78"></label>
+      <div id="check-result" class="check-result"></div>
+      <div class="row wrap"><button id="btn-adjust" class="btn primary" hidden>Aggiungi rettifica</button><button id="btn-check-close" class="btn">Chiudi</button></div>
+    </div>
+    <div class="small muted" id="saldo-note"></div>
+  </div>
 </div>
 
 <!-- csv import sheet -->
@@ -751,10 +808,14 @@ const perMonth = (key) => ({ type: "month", start: `${key}-01`, end: `${key}-${p
 const perDay = (d) => ({ type: "day", start: d, end: d });
 const perYear = (y) => ({ type: "year", start: `${y}-01-01`, end: `${y}-12-31` });
 const perCustom = (a, b) => (a <= b ? { type: "custom", start: a, end: b } : { type: "custom", start: b, end: a });
+const perWeek = (d) => { const s0 = addDays(d, -((dtOf(d).getDay() + 6) % 7)); return { type: "week", start: s0, end: addDays(s0, 6) }; };
+const perAll = () => ({ type: "all", start: firstDate(), end: todayISO() });
 function stepPer(P, n) {
   if (P.type === "day") return perDay(addDays(P.start, n));
   if (P.type === "month") return perMonth(addMonths(P.start.slice(0, 7), n));
   if (P.type === "year") return perYear(Number(P.start.slice(0, 4)) + n);
+  if (P.type === "week") return perWeek(addDays(P.start, 7 * n));
+  if (P.type === "all") return P;
   const len = daysBetween(P.start, P.end) + 1;
   return perCustom(addDays(P.start, n * len), addDays(P.end, n * len));
 }
@@ -767,15 +828,19 @@ function perLabel(P) {
   }
   if (P.type === "month") return cap1(monthLabel(P.start.slice(0, 7)));
   if (P.type === "year") return P.start.slice(0, 4);
+  if (P.type === "all") return "Tutto";
+  if (P.type === "week" && perContains(P, todayISO())) return "Questa settimana";
   return `${fmtD(P.start, P.start.slice(0, 4) !== P.end.slice(0, 4))} – ${fmtD(P.end, true)}`;
 }
 function perOf(P) {
   if (P.type === "month") return "di " + monthName(P.start.slice(0, 7));
   if (P.type === "year") return "del " + P.start.slice(0, 4);
   if (P.type === "day") return P.start === todayISO() ? "di oggi" : P.start === shiftDays(-1) ? "di ieri" : "del " + fmtD(P.start);
+  if (P.type === "week") return "della settimana";
+  if (P.type === "all") return "di sempre";
   return "del periodo";
 }
-const perWord = (P) => (P.type === "month" ? "mese" : P.type === "year" ? "anno" : P.type === "day" ? "giorno" : "periodo");
+const perWord = (P) => (P.type === "month" ? "mese" : P.type === "year" ? "anno" : P.type === "day" ? "giorno" : P.type === "week" ? "settimana" : "periodo");
 const perKeys = (P) => { const out = []; let k = P.start.slice(0, 7); const e = P.end.slice(0, 7); while (k <= e) { out.push(k); k = addMonths(k, 1); } return out; };
 const perContains = (P, d) => d >= P.start && d <= P.end;
 
@@ -942,28 +1007,27 @@ function banner(msg) { const b = $("#banner"); if (!msg) { b.hidden = true; retu
 const VIEWS = ["panoramica", "lista", "budget", "patrimonio", "analisi", "altro"];
 function route() {
   const h = (location.hash || "").replace("#", ""); S.view = VIEWS.includes(h) ? h : "panoramica"; renderAll(); window.scrollTo(0, 0);
-  const tab = $(`.tabs [data-view="${S.view}"]`); if (tab && tab.scrollIntoView) tab.scrollIntoView({ inline: "nearest", block: "nearest" });
 }
+const VIEW_TITLES = { panoramica: "Panoramica", lista: "Movimenti", budget: "Budget e obiettivi", patrimonio: "Patrimonio", analisi: "Analisi", altro: "Categorie e backup" };
+function syncHeaderH() { const h = $(".hero"); if (h) document.documentElement.style.setProperty("--hh", h.offsetHeight + "px"); }
 function showView() {
   const needSetup = S.loaded && !S.cfg;
   const ready = !!S.cfg;
   $("#view-setup").hidden = !needSetup;
   for (const v of VIEWS) $(`#view-${v}`).hidden = !ready || S.view !== v;
-  for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.view === S.view));
-  $("#hero-main").hidden = !ready;
-  $("#btn-altro").hidden = !ready;
-  $("#btn-altro").setAttribute("aria-pressed", String(S.view === "altro"));
+  $("#btn-menu").hidden = !ready; $("#btn-search").hidden = !ready;
+  $("#view-title").textContent = ready ? VIEW_TITLES[S.view] : "";
   $("#monthpill").hidden = !ready || S.view === "altro" || S.view === "patrimonio";
-  $("#perseg").hidden = !ready || S.view === "altro" || S.view === "patrimonio";
-  $("#quick-form").hidden = !ready || S.view === "altro";
   $("#hero-hint").hidden = !needSetup;
-  $("#fabs").hidden = !ready;
+  $("#fabs").hidden = !ready || S.view !== "lista";
+  document.body.classList.toggle("home", ready && S.view === "panoramica");
+  syncHeaderH();
 }
 
 /* ---------- render: header ---------- */
 function renderHeader() {
   $("#month-title").textContent = perLabel(S.per);
-  for (const b of $$("#perseg button")) b.setAttribute("aria-pressed", String(b.dataset.pt === S.per.type));
+  for (const b of $$("[data-month-step]")) b.style.visibility = S.per.type === "all" ? "hidden" : "visible";
   const n = perTx(S.per).length;
   $("#month-sub").textContent = n === 1 ? "1 movimento" : `${n} movimenti`;
 }
@@ -992,76 +1056,58 @@ function voceRow(v, cat, total, onPick, div) {
 }
 function goLista(f, per) {
   if (per) setPer(per);
-  S.lf = f; S.search = ""; $("#search").value = "";
+  S.lf = f || null; S.search = ""; $("#search").value = "";
   if (location.hash === "#lista") renderAll(); else location.hash = "lista";
 }
 function openVoce(catId, v, per) { goLista({ c: catId, key: v.key, label: v.label }, per); }
 function openCatList(catId) { goLista({ c: catId, key: null, label: catById(catId).name }); }
 
 /* ---------- render: panoramica ---------- */
-function renderRing() {
-  const { m, excluded } = perCatSpend(S.per, false);
+const SLOTS = [[1, 3], [1, 4], [2, 4], [3, 4], [4, 4], [4, 3], [4, 2], [4, 1], [3, 1], [2, 1], [1, 1], [1, 2]]; // clockwise from the top, like the ring
+function renderHome() {
+  const { m } = perCatSpend(S.per, false);
   const rows = [...m].filter(([, v]) => v > 0.5).sort((a, b) => b[1] - a[1]);
-  const total = rows.reduce((s, [, v]) => s + v, 0);
-  if (S.sel && !m.has(S.sel)) S.sel = null;
-  const svg = $("#ring"); const R = 92, SW = 18, C = 2 * Math.PI * R;
-  const nodes = [sv("circle", { cx: 110, cy: 110, r: R, class: "ring-track", "stroke-width": SW })];
+  const total = rows.reduce((acc, [, v]) => acc + v, 0);
+  // what goes around the ring: the biggest categories, then the ones you use most (at 0 €)
+  let items = rows.length > 12 ? [...rows.slice(0, 11), ["__more", rows.slice(11).reduce((acc, [, v]) => acc + v, 0)]] : rows.slice();
+  if (items.length < 12) {
+    const used = new Set(items.map(([c]) => c)); const freq = new Map();
+    for (const t of allTx()) freq.set(t.c, (freq.get(t.c) || 0) + 1);
+    const fill = cats().filter((c) => !c.archived && c.kind === "out" && !used.has(c.id)).sort((a, b) => (freq.get(b.id) || 0) - (freq.get(a.id) || 0)).slice(0, 12 - items.length).map((c) => [c.id, 0]);
+    items = items.concat(fill);
+  }
+  // ring
+  const R = 92, SW = 18, C = 2 * Math.PI * R;
+  const svg = sv("svg", { viewBox: "0 0 220 220", "aria-hidden": "true" });
+  svg.append(sv("circle", { cx: 110, cy: 110, r: R, class: "ring-track", "stroke-width": SW }));
+  const segs = items.filter(([, v]) => v > 0);
   if (total > 0) {
-    // slices under 3% would be crowded dots: draw them as one grey "altre" arc (the list below still has them all)
-    const bigRows = rows.filter(([, v]) => v / total >= 0.03);
-    const small = rows.filter(([, v]) => v / total < 0.03);
-    const segs = small.length > 1 ? [...bigRows, [null, small.reduce((s, [, v]) => s + v, 0)]] : rows;
     const gap = segs.length > 1 ? SW + 6 : 0; let off = 0;
     for (const [c, v] of segs) {
       const len = (v / total) * C; const draw = Math.max(len - gap, 0.01);
-      const color = c ? `hsl(${catById(c).hue} 72% var(--seg-l))` : "var(--muted)";
-      const dim = S.sel && S.sel !== c ? 0.22 : c ? 1 : 0.35;
-      const seg = sv("circle", { cx: 110, cy: 110, r: R, class: "ring-seg", "stroke-width": SW,
-        "stroke-dasharray": `${draw} ${C - draw}`, "stroke-dashoffset": String(-(off + gap / 2)), transform: "rotate(-90 110 110)",
-        style: `stroke:${color};opacity:${dim}` });
-      if (c) seg.addEventListener("click", () => openCatList(c));
-      else seg.style.cursor = "default";
-      nodes.push(seg); off += len;
+      const color = c === "__more" ? "var(--muted)" : `hsl(${catById(c).hue} 72% var(--seg-l))`;
+      const seg = sv("circle", { cx: 110, cy: 110, r: R, class: "ring-seg", "stroke-width": SW, "stroke-dasharray": `${draw} ${C - draw}`, "stroke-dashoffset": String(-(off + gap / 2)), transform: "rotate(-90 110 110)", style: `stroke:${color};opacity:${c === "__more" ? 0.4 : 1}` });
+      if (c !== "__more") seg.addEventListener("click", () => openCatList(c));
+      svg.append(seg); off += len;
     }
   }
-  svg.replaceChildren(...nodes);
-  const center = $("#ring-center");
-  if (S.sel) {
-    const c = catById(S.sel);
-    center.replaceChildren(icon(c), el("div", { class: "amt", text: eur0(m.get(S.sel)) }), el("div", { class: "lbl", text: c.name }));
-    center.setAttribute("aria-label", `${c.name}: ${eur(m.get(S.sel))}. Tocca per tornare al totale.`);
-  } else {
-    center.replaceChildren(el("div", { class: "lbl", text: "Uscite " + perOf(S.per) }), el("div", { class: "amt", text: eur0(total) }), el("div", { class: "lbl", text: rows.length ? `${rows.length} categori${rows.length === 1 ? "a" : "e"}` : "nessuna spesa" }));
-    center.setAttribute("aria-label", `Uscite ${perOf(S.per)}: ${eur(total)}`);
-  }
   const t = perTotals(S.per);
-  const fit = (txt) => (txt.length >= 11 ? " xs" : txt.length >= 9 ? " sm" : "");
-  const stat = (k, v, cls) => { const txt = eurS0(v); return el("div", {}, el("span", { class: "k", text: k }), el("span", { class: "v " + cls + fit(txt), text: txt })); };
-  $("#stats3").replaceChildren(stat("Entrate", t.inc, "pos"), stat("Uscite", t.out, "neg"), stat("Netto", t.net, t.net >= 0 ? "pos" : "neg"));
-  const more = $("#legend-more");
-  $("#legend-back").hidden = !S.sel;
-  if (S.sel) {
-    const cat = catById(S.sel); const tot = m.get(S.sel) || 0;
-    const list = voci(perTx(S.per).filter((t) => Math.abs(t.a) < BIG), S.sel);
-    const shownV = S.legendAll ? list : list.slice(0, 8);
-    $("#legend").replaceChildren(el("div", { class: "dayhead" }, el("span", { text: `Voci di ${cat.name}` }), el("span", { text: perLabel(S.per) })),
-      ...shownV.map((v) => voceRow(v, cat, tot, () => openVoce(cat.id, v))));
-    more.hidden = list.length <= 8;
-    more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${list.length} voci`;
-    $("#ring-note").textContent = "Tocca una voce per vedere i suoi movimenti.";
-    return;
-  }
-  const shown = S.legendAll ? rows : rows.slice(0, 6);
-  $("#legend").replaceChildren(...shown.map(([c, v]) => {
-    const cat = catById(c); const p = total ? (v / total) * 100 : 0;
-    return el("button", { class: "lrow", type: "button", "aria-label": `${cat.name}: ${eur(v)}. Tocca per vedere le spese.`, onclick: () => openCatList(c) },
-      icon(cat),
-      el("span", { style: "min-width:0" }, el("div", { class: "nm", text: cat.name }), el("div", { class: "mini" }, el("i", { style: `--h:${cat.hue};width:${p.toFixed(1)}%` }))),
-      el("span", { class: "rt" }, el("b", { text: eur0(v) }), el("span", { text: `${p < 1 ? "<1" : Math.round(p)}%` })));
-  }));
-  more.hidden = rows.length <= 6;
-  more.textContent = S.legendAll ? "Mostra meno" : `Mostra tutte le ${rows.length} categorie`;
-  $("#ring-note").textContent = (rows.length ? "Tocca una categoria per vedere le sue spese. " : "") + (excluded ? `Esclus${excluded === 1 ? "o 1 movimento" : `i ${excluded} movimenti`} sopra 5.000 € (prestiti, estinzioni): sono nei totali qui sopra.` : "");
+  const center = el("button", { class: "ring-center", type: "button", "aria-label": `Uscite ${perOf(S.per)}: ${eur(total)}. Tocca per vedere i movimenti.`, onclick: () => goLista(null) },
+    el("div", { class: "lbl", text: "Uscite " + perOf(S.per) }), el("div", { class: "amt", text: eur0(total) }),
+    el("div", { class: "in", text: t.inc > 0.5 ? `entrate ${eurS0(t.inc)}` : "nessuna entrata" }));
+  const cells = [el("div", { class: "ringcell" }, svg, center)];
+  items.forEach(([c, v], i) => {
+    const [r, col] = SLOTS[i];
+    if (c === "__more") {
+      cells.push(el("button", { class: "bub more", type: "button", style: `grid-row:${r};grid-column:${col};--h:0`, "aria-label": `Altre categorie: ${eur(v)}. Tocca per l'elenco completo.`, onclick: () => { S.chartMode = "month"; location.hash = "analisi"; } },
+        el("span", { class: "ic", text: "⋯" }), el("span", { class: "amt", text: eur0(v) }), el("span", { class: "nm", text: "Altre" })));
+      return;
+    }
+    const cat = catById(c);
+    cells.push(el("button", { class: "bub" + (v > 0 ? "" : " zero"), type: "button", style: `grid-row:${r};grid-column:${col};--h:${cat.hue}`, "aria-label": `${cat.name}: ${eur(v)}. Tocca per vedere le spese.`, onclick: () => openCatList(c) },
+      el("span", { class: "ic", text: cat.emoji || "•" }), el("span", { class: "amt", text: eur0(v) }), el("span", { class: "nm", text: cat.name })));
+  });
+  $("#homegrid").replaceChildren(...cells);
 }
 function cumDaily(P) {
   const n = daysBetween(P.start, P.end) + 1; const daily = new Array(n + 1).fill(0);
@@ -1092,13 +1138,16 @@ function renderPace() {
       const prev = [1, 2, 3].map((n) => cumDaily(stepPer(P, -n)));
       cmp = [0]; for (let i = 1; i <= N; i++) cmp[i] = prev.reduce((acc, c) => acc + c[Math.min(i, c.length - 1)], 0) / 3;
       cmpName = "Media 3 mesi prima"; vs = "la media"; curName = cap1(monthName(P.start.slice(0, 7)));
-    } else { cmp = cumDaily(stepPer(P, -1)); cmpName = "Periodo precedente"; vs = "il periodo prima"; curName = "Questo periodo"; }
+    } else if (P.type === "week") { cmp = cumDaily(stepPer(P, -1)); cmpName = "Settimana prima"; vs = "la settimana prima"; curName = perContains(P, today) ? "Questa settimana" : "Settimana"; }
+    else { cmp = P.type === "all" ? [0] : cumDaily(stepPer(P, -1)); cmpName = "Periodo precedente"; vs = "il periodo prima"; curName = "Questo periodo"; }
     upto = today > P.end ? N : today < P.start ? 0 : daysBetween(P.start, today) + 1;
     const q = (f) => Math.max(1, Math.round(1 + (N - 1) * f));
     ticks = [...new Set([1, q(0.25), q(0.5), q(0.75), N])];
     tickLab = (i) => (P.type === "month" ? String(i) : fmtD(addDays(P.start, i - 1)));
     const ongoing = upto > 0 && upto < N;
     if (P.type === "month") { const ck = curMonthKey(), k = P.start.slice(0, 7); title = k === ck ? "Speso finora questo mese" : k < ck ? `Speso a ${monthName(k)}` : `${monthLabel(k)}: mese futuro`; if (k === ck) curName = "Questo mese"; }
+    else if (P.type === "week") title = ongoing ? "Speso finora questa settimana" : upto ? "Speso nella settimana" : "Settimana futura";
+    else if (P.type === "all") title = "Speso da sempre";
     else title = ongoing ? "Speso finora nel periodo" : upto ? "Speso nel periodo" : "Periodo futuro";
   }
   const spent = upto ? cur[upto] : 0; const ref = upto ? cmp[Math.min(upto, cmp.length - 1)] : 0;
@@ -1144,11 +1193,15 @@ function renderBalance() {
   }
   const lb = S.cfg.lastBackup; const days = lb ? daysSince(lb) : null;
   const show = S.months.size > 0 && (days == null || days >= 14);
-  $("#backup-nudge").hidden = !show;
+  $("#backup-nudge").hidden = !show; $("#menu-dot").hidden = !show;
+  $("#home-balance").textContent = eur(balance());
+  const lc2 = S.cfg.lastCheck; const okb = lc2 && lc2.date && Math.abs(Number(lc2.diff) || 0) < 0.005;
+  const hc = $("#home-check"); hc.className = "st " + (okb ? "pos" : "warn");
+  hc.textContent = okb ? `✓ tornava il ${fmtD(lc2.date)}` : "tocca per controllare con la banca";
   if (show) $("#backup-nudge-text").textContent = days == null ? "Non hai ancora fatto un backup dei dati." : `Ultimo backup ${days} giorni fa.`;
   $("#checkup-title").textContent = `Check-up ${perOf(S.per)} con Claude`;
 }
-function renderPanoramica() { renderRing(); renderPace(); renderBalance(); }
+function renderPanoramica() { renderHome(); }
 function renderCheckResult() {
   const v = parseAmount($("#bank-balance").value);
   const res = $("#check-result"), adj = $("#btn-adjust");
@@ -1252,6 +1305,7 @@ function renderBudget() {
 
 /* ---------- render: analisi ---------- */
 function renderAnalisi() {
+  renderPace();
   const keys = []; for (let i = 11; i >= 0; i--) keys.push(addMonths(curMonthKey(), -i));
   const data = keys.map((k) => { let inc = 0, out = 0; for (const t of S.months.get(k) || []) { if (isGiro(t) || (!S.inclBig && Math.abs(t.a) >= BIG)) continue; if (t.a > 0) inc += t.a; else out -= t.a; } return { k, inc, out }; });
   const max = Math.max(1, ...data.map((d) => Math.max(d.inc, d.out)));
@@ -1316,7 +1370,7 @@ function renderAltro() {
 function renderAll() {
   showView();
   if (!S.cfg) return;
-  renderHeader();
+  renderHeader(); renderBalance(); renderDrawer();
   if (S.view === "panoramica") renderPanoramica();
   else if (S.view === "lista") renderLista();
   else if (S.view === "budget") renderBudgetView();
@@ -2052,58 +2106,65 @@ async function doCsvImport(e) {
 
 /* ---------- period sheet and swipe ---------- */
 function firstDate() { let d = S.cfg && S.cfg.startDate ? S.cfg.startDate : todayISO(); for (const k of S.months.keys()) { const f = `${k}-01`; if (f < d) { const arr = S.months.get(k); for (const t of arr) if (t.d < d) d = t.d; } } return d; }
-function openPerSheet() {
+function renderDrawer() {
+  if ($("#drawer").hidden) return;
+  for (const b of $$("#dper button")) b.setAttribute("aria-pressed", String(b.dataset.pt === S.per.type || (b.dataset.pt === "custom" && !$("#drange").hidden)));
+  for (const b of $$("#dnav .ditem")) { if (b.dataset.go === S.view) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); }
+}
+function openDrawer() {
   const t = todayISO(); const ck = curMonthKey(); const y = Number(t.slice(0, 4));
-  const dow = (dtOf(t).getDay() + 6) % 7; // Monday = 0
-  const quick = [
-    ["Oggi", perDay(t)], ["Ieri", perDay(shiftDays(-1))], ["Questa settimana", perCustom(addDays(t, -dow), addDays(t, 6 - dow))], ["Ultimi 7 giorni", perCustom(addDays(t, -6), t)],
-    ["Questo mese", perMonth(ck)], ["Mese scorso", perMonth(addMonths(ck, -1))], ["Ultimi 30 giorni", perCustom(addDays(t, -29), t)], ["Ultimi 3 mesi", perCustom(`${addMonths(ck, -2)}-01`, t)],
-    ["Quest'anno", perYear(y)], ["Anno scorso", perYear(y - 1)], ["Tutto", perCustom(firstDate(), t)],
-  ];
-  const same = (a, b) => a.type === b.type && a.start === b.start && a.end === b.end;
-  $("#per-quick").replaceChildren(...quick.map(([lab, P]) => el("button", { type: "button", class: "chipbtn", "aria-pressed": String(same(P, S.per)), onclick: () => { setPer(P); $("#per-sheet").hidden = true; renderAll(); } }, lab)));
+  const quick = [["Ultimi 7 giorni", perCustom(addDays(t, -6), t)], ["Ultimi 30 giorni", perCustom(addDays(t, -29), t)], ["Ultimi 3 mesi", perCustom(`${addMonths(ck, -2)}-01`, t)], ["Mese scorso", perMonth(addMonths(ck, -1))], ["Anno scorso", perYear(y - 1)]];
+  $("#per-quick").replaceChildren(...quick.map(([lab, P]) => el("button", { type: "button", class: "chipbtn", onclick: () => { setPer(P); closeDrawer(); renderAll(); } }, lab)));
   $("#per-from").value = S.per.start; $("#per-to").value = S.per.end; $("#per-goto").value = "";
-  $("#per-goto-label").textContent = S.per.type === "month" ? "Oppure vai al mese di una data" : S.per.type === "year" ? "Oppure vai all'anno di una data" : "Oppure vai a un giorno";
-  $("#per-sheet").hidden = false; $("#per-form").scrollTop = 0;
+  $("#drange").hidden = S.per.type !== "custom";
+  $("#drawer").hidden = false; renderDrawer();
+}
+function closeDrawer() { $("#drawer").hidden = true; }
+function pickPeriodType(tp) {
+  const anchor = perContains(S.per, todayISO()) ? todayISO() : S.per.end;
+  if (tp === "custom") { $("#drange").hidden = false; renderDrawer(); $("#per-from").focus(); return; }
+  setPer(tp === "day" ? perDay(anchor) : tp === "week" ? perWeek(anchor) : tp === "month" ? perMonth(anchor.slice(0, 7)) : tp === "year" ? perYear(Number(anchor.slice(0, 4))) : perAll());
+  closeDrawer(); renderAll();
 }
 function setupSwipe() {
   const main = $("main.app"); let sx = 0, sy = 0, st = 0, ok = false;
-  main.addEventListener("touchstart", (e) => { ok = e.touches.length === 1 && !e.target.closest("input, textarea, select, .bars, .ring-wrap"); if (!ok) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+  main.addEventListener("touchstart", (e) => { ok = e.touches.length === 1 && !e.target.closest("input, textarea, select, .bars, .vchips"); if (!ok) return; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
   main.addEventListener("touchend", (e) => {
-    if (!ok || !S.cfg || S.view === "altro" || S.view === "patrimonio") return;
+    if (!ok || !S.cfg) return;
     const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy;
-    if (Date.now() - st < 700 && Math.abs(dx) > 70 && Math.abs(dy) < 50) { setPer(stepPer(S.per, dx < 0 ? 1 : -1)); renderAll(); }
+    if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+    if (sx < 28 && dx > 0) { openDrawer(); return; } // swipe from the left edge opens the menu
+    if (S.view === "altro" || S.view === "patrimonio" || S.per.type === "all") return;
+    setPer(stepPer(S.per, dx < 0 ? 1 : -1)); renderAll();
   }, { passive: true });
 }
 
 /* ---------- bindings ---------- */
 function bind() {
-  for (const b of $$(".tabs button")) b.addEventListener("click", () => { S.lf = null; if (location.hash === "#" + b.dataset.view) renderAll(); else location.hash = b.dataset.view; });
-  $("#btn-altro").addEventListener("click", () => { location.hash = S.view === "altro" ? "panoramica" : "altro"; });
   for (const b of $$("[data-month-step]")) b.addEventListener("click", () => { setPer(stepPer(S.per, Number(b.dataset.monthStep))); renderAll(); });
-  for (const b of $$("#perseg button")) b.addEventListener("click", () => {
-    const t = b.dataset.pt; const anchor = perContains(S.per, todayISO()) ? todayISO() : S.per.end;
-    if (t === "custom") { openPerSheet(); return; }
-    setPer(t === "day" ? perDay(anchor) : t === "month" ? perMonth(anchor.slice(0, 7)) : perYear(Number(anchor.slice(0, 4)))); renderAll();
-  });
-  $("#per-open").addEventListener("click", openPerSheet);
-  $("#per-form").addEventListener("submit", (e) => {
-    e.preventDefault(); const a = $("#per-from").value, b2 = $("#per-to").value;
+  $("#btn-menu").addEventListener("click", openDrawer);
+  $("#per-open").addEventListener("click", openDrawer);
+  $("#btn-search").addEventListener("click", () => { S.lf = null; if (location.hash !== "#lista") location.hash = "lista"; else renderAll(); setTimeout(() => $("#search").focus(), 60); });
+  $("#drawer").addEventListener("click", (e) => { if (e.target.id === "drawer") closeDrawer(); });
+  for (const b of $$("#dper button")) b.addEventListener("click", () => pickPeriodType(b.dataset.pt));
+  $("#per-apply").addEventListener("click", () => {
+    const a = $("#per-from").value, b2 = $("#per-to").value;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b2)) { toast("Scegli le date dal / al."); return; }
-    setPer(perCustom(a, b2)); $("#per-sheet").hidden = true; renderAll();
+    setPer(perCustom(a, b2)); closeDrawer(); renderAll();
   });
   $("#per-goto").addEventListener("change", (e) => {
     const d = e.target.value; if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
-    const t = S.per.type; setPer(t === "month" ? perMonth(d.slice(0, 7)) : t === "year" ? perYear(Number(d.slice(0, 4))) : perDay(d));
-    $("#per-sheet").hidden = true; renderAll();
+    const tp = S.per.type; setPer(tp === "month" ? perMonth(d.slice(0, 7)) : tp === "year" ? perYear(Number(d.slice(0, 4))) : tp === "week" ? perWeek(d) : perDay(d));
+    closeDrawer(); renderAll();
   });
+  for (const b of $$("#dnav .ditem")) b.addEventListener("click", () => { S.lf = null; closeDrawer(); if (location.hash === "#" + b.dataset.go) renderAll(); else location.hash = b.dataset.go; });
+  $("#btn-saldo").addEventListener("click", () => { $("#check-panel").hidden = true; $("#btn-check").hidden = false; $("#saldo-sheet").hidden = false; });
+  $("#home-out").addEventListener("click", () => openTx(null, { kind: "out" }));
+  $("#home-in").addEventListener("click", () => openTx(null, { kind: "in" }));
   setupSwipe();
   $("#quick-form").addEventListener("submit", quickSubmit);
   $("#fab-out").addEventListener("click", () => openTx(null, { kind: "out" }));
   $("#fab-in").addEventListener("click", () => openTx(null, { kind: "in" }));
-  $("#ring-center").addEventListener("click", () => { if (S.sel) { S.sel = null; renderPanoramica(); } });
-  $("#legend-more").addEventListener("click", () => { S.legendAll = !S.legendAll; renderPanoramica(); });
-  $("#legend-back").addEventListener("click", () => { S.sel = null; S.legendAll = false; renderPanoramica(); });
   $("#tx-form").addEventListener("submit", saveTx);
   $("#tx-close").addEventListener("click", closeTx);
   $("#tx-delete").addEventListener("click", () => { const t = S.tx; closeTx(); if (t) deleteTx(t); });
@@ -2155,13 +2216,14 @@ function bind() {
   $("#csv-form").addEventListener("submit", doCsvImport);
   $("#csv-invert").addEventListener("change", csvRender); $("#csv-dedup").addEventListener("change", csvRender);
   for (const b of $$("[data-close]")) b.addEventListener("click", () => { $("#" + b.dataset.close).hidden = true; });
-  for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "per-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "per-sheet"]) $("#" + id).hidden = true; } });
+  for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).addEventListener("click", (e) => { if (e.target.id === id) $("#" + id).hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeTx(); closeCat(); for (const id of ["goal-sheet", "gmove-sheet", "asset-sheet", "csv-sheet", "saldo-sheet"]) $("#" + id).hidden = true; closeDrawer(); } });
 }
 
 /* ---------- boot ---------- */
 async function boot() {
   bind(); route(); window.addEventListener("hashchange", route);
+  window.addEventListener("resize", syncHeaderH);
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) navigator.serviceWorker.register("sw.js").catch(() => {});
   try {
     await IDB.open();
