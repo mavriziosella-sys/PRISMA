@@ -570,7 +570,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.2</div>
+      <div class="small muted">Prisma · versione 3.3</div>
     </div>
   </section>
 </main>
@@ -2228,6 +2228,13 @@ async function openCsvImport(file) {
   csvRender();
   $("#csv-sheet").hidden = false; $("#csv-form").scrollTop = 0;
 }
+function cleanBankDesc(raw) {
+  let t = raw; const card = /operazione carta/i.test(t);
+  t = t.replace(/\s*operazione carta.*$/i, "").replace(/\s+(N:|ID:|Num\.|ABI-CAB:?|RIF\.|DEB:|EUR\s+\d).*$/i, "").replace(/\s+AVVISO n\.\S+/i, "");
+  if (card) t = t.replace(/\s+[A-Z]{3}$/, "");
+  t = t.replace(/\s+/g, " ").trim();
+  return (t || raw).slice(0, 90);
+}
 function csvCompute() {
   const C = S.csv; const m = C.map; const inv = $("#csv-invert").checked; const tol = Number($("#csv-dedup").value);
   // rows of the file
@@ -2241,10 +2248,14 @@ function csvCompute() {
     }
     if (!d || !Number.isFinite(a) || Math.abs(a) < 0.005) { bad++; continue; }
     a = round2(inv ? -a : a);
-    const n = m.desc >= 0 ? String(r[m.desc] || "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-    rows.push({ d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
+    const raw = m.desc >= 0 ? String(r[m.desc] || "").replace(/\s+/g, " ").trim() : "";
+    // card payments: the bank books them days later, the real date is in the description ("Operazione carta ... del 18.11.2026")
+    let dd = d; const pm = raw.match(/operazione carta\b.*?\bdel (\d{2})[./](\d{2})[./](\d{4})/i);
+    if (pm) { const pd = `${pm[3]}-${pm[2]}-${pm[1]}`; const lag = daysBetween(pd, d); if (/^\d{4}-\d{2}-\d{2}$/.test(pd) && lag >= 0 && lag <= 15) dd = pd; }
+    const n = cleanBankDesc(raw);
+    rows.push({ d: dd, booked: d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
   }
-  if (tol < 0) return { out: rows, probable: [], mismatch: [], extra: [], range: null, bad, dup: 0 };
+  if (tol < 0) return { out: rows, probable: [], mismatch: [], pairs: [], extra: [], range: null, bad, dup: 0 };
   // movements already in the app, by amount; each one can match only one row of the file
   const pool = new Map(); const add = (t) => { const k = Number(t.a).toFixed(2); if (!pool.has(k)) pool.set(k, []); pool.get(k).push({ t, used: false }); };
   for (const t of allTx()) add(t);
@@ -2263,9 +2274,25 @@ function csvCompute() {
   }
   // pass 3: in the same days, an app movement with a slightly different amount (a few cents, or digits swapped)
   const unused = []; for (const arr of pool.values()) for (const x of arr) if (!x.used && x.t.i) unused.push(x);
-  const mismatch = []; const out2 = [];
   const win = Math.max(tol, 1);
+  // pass 3a: one movement in Prisma = two rows in the bank (the payment and its commission)
+  const pairs = []; const taken = new Set();
+  for (const x of unused) {
+    if (x.used) continue; let hit = null, hs = -1;
+    const words = (r) => new Set(norm(r.n).split(" ").filter((w) => w.length > 3 && !STOP.has(w) && !["commissioni", "commissione", "addebito"].includes(w)));
+    for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const a = out[i], b = out[j]; if (taken.has(a) || taken.has(b)) continue;
+      if (Math.abs(round2(a.a + b.a) - x.t.a) >= 0.005 || Math.abs(daysBetween(a.d, b.d)) > 3) continue;
+      if (Math.abs(daysBetween(x.t.d, a.d)) > win && Math.abs(daysBetween(x.t.d, b.d)) > win) continue;
+      const wa = words(a); let sc = 0; for (const w of words(b)) if (wa.has(w)) sc++; // prefer the commission of the same payee
+      sc = sc * 10 - Math.abs(daysBetween(a.d, b.d));
+      if (sc > hs) { hit = [a, b]; hs = sc; }
+    }
+    if (hit) { x.used = true; taken.add(hit[0]); taken.add(hit[1]); pairs.push({ t: x.t, rows: hit }); }
+  }
+  const mismatch = []; const out2 = [];
   for (const r of out) {
+    if (taken.has(r)) continue;
     let best = null, bd = Infinity;
     for (const x of unused) {
       if (x.used || Math.sign(x.t.a) !== Math.sign(r.a)) continue;
@@ -2277,11 +2304,12 @@ function csvCompute() {
     if (best) { best.used = true; mismatch.push({ ...r, match: best.t, days: bd }); } else out2.push(r);
   }
   // movements in Prisma inside the statement's dates that the bank doesn't have
-  const ds = rows.map((r) => r.d).sort(); const range = ds.length ? [ds[0], ds[ds.length - 1]] : null;
+  const ds = rows.map((r) => r.booked || r.d).sort(); const range = ds.length ? [ds[0], ds[ds.length - 1]] : null;
   const extra = range ? unused.filter((x) => !x.used && x.t.d >= range[0] && x.t.d <= range[1]).map((x) => x.t).sort(byDateDesc) : [];
   const bankSum = round2(rows.reduce((acc, r) => acc + r.a, 0));
-  const appSum = range ? round2(allTx().filter((t) => t.d >= range[0] && t.d <= range[1]).reduce((acc, t) => acc + t.a, 0)) : 0;
-  return { out: out2, probable, mismatch, extra, range, bankSum, appSum, bad, dup };
+  // the same movements as Prisma has them: bank total, minus what's missing, adjusted for different amounts, plus what the bank doesn't have
+  const appSum = round2(bankSum - out2.reduce((acc, r) => acc + r.a, 0) - mismatch.reduce((acc, r) => acc + (r.a - r.match.a), 0) + extra.reduce((acc, t) => acc + t.a, 0));
+  return { out: out2, probable, mismatch, pairs, extra, range, bankSum, appSum, bad, dup };
 }
 function csvRender() {
   const C = S.csv; const ok = C.map.date >= 0 && (C.map.amount >= 0 || C.map.out >= 0 || C.map.inc >= 0);
@@ -2297,6 +2325,7 @@ function csvRender() {
     el("div", {}, el("b", { text: `${chosen.length} moviment${chosen.length === 1 ? "o" : "i"} da aggiungere` }), ds.length ? ` dal ${fmt(ds[0])} al ${fmt(ds[ds.length - 1])}` : ""),
     chosen.length ? el("div", {}, el("span", { class: "pos", text: `entrate ${eurS(round2(inc))}` }), " · ", el("span", { class: "neg", text: `uscite ${eurS(round2(outS))}` })) : null,
     res.dup ? el("div", { text: res.dup === 1 ? "1 già presente con la stessa data: lo salto." : `${res.dup} già presenti con la stessa data: li salto.` }) : null,
+    res.pairs && res.pairs.length ? el("div", { text: `${res.pairs.length} in Prisma come pagamento + commissione insieme: tornano.` }) : null,
     res.mismatch && res.mismatch.length ? el("div", { class: "warn", text: `${res.mismatch.length} con importo diverso da quello in Prisma: li trovi qui sotto, non li importo.` }) : null,
     np ? el("div", { class: "warn", text: np === 1 ? "1 probabile doppione (stesso importo, data vicina): controllalo qui sotto." : `${np} probabili doppioni (stesso importo, data vicina): controllali qui sotto.` }) : null,
     res.bad ? el("div", { class: "muted", text: res.bad === 1 ? "1 riga senza data o importo validi: la ignoro." : `${res.bad} righe senza data o importo validi: le ignoro.` }) : null,
@@ -2322,7 +2351,7 @@ function csvRender() {
     const diff = round2(res.bankSum - res.appSum);
     rc.push(el("div", { class: "banner csvsum", style: "margin-top:6px" },
       el("div", {}, el("b", { text: "Confronto con l'estratto conto" }), ` dal ${fmt(res.range[0])} al ${fmt(res.range[1])}`),
-      el("div", {}, `Movimenti in banca ${eurS(res.bankSum)} · in Prisma ${eurS(res.appSum)}`),
+      el("div", {}, `Movimenti in banca ${eurS(res.bankSum)} · gli stessi in Prisma ${eurS(res.appSum)}`),
       el("div", { class: Math.abs(diff) < 0.005 ? "pos" : "warn", text: Math.abs(diff) < 0.005 ? "✓ In questo periodo i totali coincidono." : `Differenza nel periodo: ${eurS(diff)}. Qui sotto trovi da dove viene.` })));
   }
   if (res.mismatch.length) {
@@ -2334,6 +2363,12 @@ function csvRender() {
         try { await writeMonth(mk, cloneTx(mk).map((x) => (x.i === t.match.i ? { ...x, a: t.a } : x))); toast(`Corretto in ${eurS(t.a)}.`); csvRender(); } catch (_) {}
       } }, "Usa importo banca"),
       el("div", { class: "why", text: `In Prisma ${eurS(t.match.a)}, in banca ${eurS(t.a)} («${t.n || "senza descrizione"}» del ${fmt(t.d)}): differenza ${eurS(round2(t.a - t.match.a))}.` })));
+  }
+  if (res.pairs && res.pairs.length) {
+    rc.push(el("div", { class: "dayhead" }, el("span", { text: "Pagamento + commissione" }), el("span", { text: res.pairs.length })));
+    for (const p of res.pairs) rc.push(el("div", { class: "sugg" },
+      el("span", { style: "min-width:0" }, el("div", { class: "t1", text: `${p.t.n || catById(p.t.c).name} · ${fmt(p.t.d)} · ${eurS(p.t.a)}` })), el("span"),
+      el("div", { class: "why", text: `In banca sono due righe: ${p.rows.map((r) => `${eurS(r.a)} «${r.n}»`).join(" + ")}. Torna, non importo niente.` })));
   }
   if (res.extra.length) {
     rc.push(el("div", { class: "dayhead" }, el("span", { text: "In Prisma ma non in banca" }), el("span", { text: res.extra.length })));
