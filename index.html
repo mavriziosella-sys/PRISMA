@@ -331,6 +331,10 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .probrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .probrow input { width: 22px; height: 22px; accent-color: var(--accent); }
 .probrow .t2 { white-space: normal; }
+.sugg { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sugg .why { grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); }
+.sugg .tag { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--warn); }
+.sugg .btn { padding: 7px 10px; font-size: 0.82rem; }
 
 /* ---------- −/+ buttons ---------- */
 .fabs { position: fixed; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 20px; z-index: 15; pointer-events: none; }
@@ -566,7 +570,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 2.9</div>
+      <div class="small muted">Prisma · versione 3.0</div>
     </div>
   </section>
 </main>
@@ -719,6 +723,8 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     <div id="check-panel" hidden style="display:flex;flex-direction:column;gap:10px">
       <label class="field" for="bank-balance"><span>Saldo che vedi in banca (€)</span><input id="bank-balance" inputmode="decimal" placeholder="es. 5843,78"></label>
       <div id="check-result" class="check-result"></div>
+      <button type="button" class="btn soft" id="btn-diff-help" hidden>🔎 Aiutami a trovare la differenza</button>
+      <div id="diff-help"></div>
       <div class="row wrap"><button id="btn-adjust" class="btn primary" hidden>Aggiungi rettifica</button><button id="btn-check-close" class="btn">Chiudi</button></div>
     </div>
     <div class="small muted" id="saldo-note"></div>
@@ -737,6 +743,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <select id="csv-dedup"><option value="0">Solo stessa data</option><option value="3">Fino a 3 giorni di differenza</option><option value="5" selected>Fino a 5 giorni di differenza</option><option value="7">Fino a 7 giorni di differenza</option><option value="-1">Non controllare i doppioni</option></select></label>
     <div class="banner csvsum" id="csv-summary"></div>
     <div id="csv-probable"></div>
+    <div id="csv-recon"></div>
     <div id="csv-preview"></div>
     <button type="submit" class="btn primary block" id="csv-go">Importa</button>
   </form>
@@ -1210,10 +1217,63 @@ function renderPanoramica() { renderHome(); }
 function renderCheckResult() {
   const v = parseAmount($("#bank-balance").value);
   const res = $("#check-result"), adj = $("#btn-adjust");
-  if (!Number.isFinite(v)) { res.textContent = ""; adj.hidden = true; return; }
+  const hb = $("#btn-diff-help");
+  if (!Number.isFinite(v)) { res.textContent = ""; adj.hidden = true; hb.hidden = true; $("#diff-help").replaceChildren(); return; }
   const diff = round2(v - balance());
-  if (Math.abs(diff) < 0.005) { res.textContent = "✓ Torna al centesimo."; res.className = "check-result pos"; adj.hidden = true; }
-  else { res.textContent = `Differenza: ${eurS(diff)} (banca ${eur(v)}, app ${eur(balance())})`; res.className = "check-result neg"; adj.hidden = false; adj.textContent = `Aggiungi rettifica di ${eurS(diff)}`; }
+  if (Math.abs(diff) < 0.005) { res.textContent = "✓ Torna al centesimo."; res.className = "check-result pos"; adj.hidden = true; hb.hidden = true; $("#diff-help").replaceChildren(); }
+  else { res.textContent = `Differenza: ${eurS(diff)} (banca ${eur(v)}, app ${eur(balance())})`; res.className = "check-result neg"; adj.hidden = false; adj.textContent = `Aggiungi rettifica di ${eurS(diff)}`; hb.hidden = false; if ($("#diff-help").childElementCount) renderDiffHelp(); }
+}
+
+/* ---------- find the difference with the bank ---------- */
+const cents = (x) => Math.round(Math.abs(x) * 100);
+function oneTypo(a, b) { // same digits swapped, or one digit different
+  const sa = String(cents(a)), sb = String(cents(b));
+  if (sa === sb) return false;
+  if (sa.length === sb.length) {
+    let diffAt = []; for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) diffAt.push(i);
+    if (diffAt.length === 2 && diffAt[1] === diffAt[0] + 1 && sa[diffAt[0]] === sb[diffAt[1]] && sa[diffAt[1]] === sb[diffAt[0]]) return true; // two digits swapped
+    if (diffAt.length === 1 && diffAt[0] >= sa.length - 2) return true; // one wrong digit in the cents
+  }
+  return false;
+}
+function renderDiffHelp() {
+  const v = parseAmount($("#bank-balance").value); const box = $("#diff-help");
+  if (!Number.isFinite(v)) { box.replaceChildren(); return; }
+  const D = round2(v - balance()); if (Math.abs(D) < 0.005) { box.replaceChildren(); return; }
+  const lc = S.cfg.lastCheck; const okSince = lc && lc.date && Math.abs(Number(lc.diff) || 0) < 0.005 ? lc.date : null;
+  const since = okSince || shiftDays(-60);
+  const recent = allTx().filter((t) => t.d >= since).sort(byDateDesc);
+  const found = []; const seen = new Set(); let typos = 0;
+  const push = (t, tag, why) => { const k = t ? t.i + tag : tag + why; if (seen.has(k)) return; seen.add(k); found.push({ t, tag, why }); };
+  for (const t of recent) {
+    // removing it would fix the balance: noted twice, or never happened
+    if (Math.abs(-t.a - D) < 0.005) {
+      const twin = recent.find((x) => x !== t && x.a === t.a && Math.abs(daysBetween(x.d, t.d)) <= 3);
+      push(t, twin ? "Doppione?" : "In più?", twin ? `C'è anche «${twin.n || catById(twin.c).name}» con lo stesso importo il ${fmtD(twin.d)}: se è lo stesso movimento, eliminane uno e il saldo torna.` : "Se in banca non c'è, eliminandolo il saldo torna.");
+    }
+    // income noted as expense or the other way round
+    if (Math.abs(-2 * t.a - D) < 0.005) push(t, "Segno sbagliato?", t.a < 0 ? "Forse era un'entrata segnata come spesa: girandola il saldo torna." : "Forse era una spesa segnata come entrata: girandola il saldo torna.");
+    // typo in the amount: digits swapped or one wrong
+    const fixed = round2(t.a + D);
+    if (typos < 5 && Math.sign(fixed) === Math.sign(t.a) && oneTypo(t.a, fixed) && ++typos) push(t, "Importo sbagliato?", `Se l'importo giusto è ${eur(Math.abs(fixed))} invece di ${eur(Math.abs(t.a))}, il saldo torna.`);
+  }
+  // something missing: a recurring movement of exactly that amount that hasn't appeared lately
+  const want = D; const hist = new Map();
+  for (const t of allTx()) if (Math.abs(t.a - want) < 0.005) { const k = vkey(t.n); const e = hist.get(k) || { n: t.n, c: t.c, count: 0, last: "" }; e.count++; if (t.d > e.last) e.last = t.d; hist.set(k, e); }
+  for (const e of [...hist.values()].sort((a, b) => b.count - a.count).slice(0, 3)) if (e.count >= 2 && e.last < since)
+    push(null, "Manca?", `«${e.n || catById(e.c).name}» da ${eur(Math.abs(want))} (${e.count} volte in passato, l'ultima il ${fmtD(e.last, true)}): forse questa volta non l'hai segnato.`);
+  const sinceTxt = okSince ? `dal ${fmtD(okSince)}, l'ultima volta che il saldo tornava` : "negli ultimi 60 giorni";
+  const rank = { "Doppione?": 0, "In più?": 1, "Segno sbagliato?": 2, "Manca?": 3, "Importo sbagliato?": 4 };
+  found.sort((a, b) => rank[a.tag] - rank[b.tag]);
+  const items = found.slice(0, 10).map(({ t, tag, why }) => el("div", { class: "sugg" },
+    el("span", { style: "min-width:0" }, el("div", { class: "tag", text: tag }), t ? el("div", { class: "t1", text: `${t.n || catById(t.c).name} · ${fmtD(t.d)} · ${eurS(t.a)}` }) : null),
+    t ? el("button", { class: "btn", type: "button", onclick: () => { $("#saldo-sheet").hidden = true; openTx(t); } }, "Apri") : el("button", { class: "btn", type: "button", onclick: () => { $("#saldo-sheet").hidden = true; openTx(null, { kind: want > 0 ? "in" : "out", a: want }); } }, "Aggiungi"),
+    el("div", { class: "why", text: why })));
+  box.replaceChildren(
+    el("div", { class: "small", style: "margin-top:6px", text: found.length ? `Ho controllato i movimenti ${sinceTxt}. Ecco i sospetti per una differenza di ${eurS(D)}:` : `Nei movimenti ${sinceTxt} non trovo un singolo errore che spieghi ${eurS(D)}. Probabilmente mancano o sono sbagliati più movimenti.` }),
+    ...items,
+    el("div", { class: "small muted", style: "margin-top:8px", text: "Il controllo più sicuro è confrontare l'estratto conto: scaricalo in CSV dalla banca e caricalo qui. Ti mostro cosa manca, cosa c'è in più e gli importi diversi, senza importare niente finché non confermi." }),
+    el("button", { class: "btn primary block", type: "button", onclick: () => $("#csv-file").click() }, "Confronta con l'estratto conto (CSV)"));
 }
 
 /* ---------- render: lista ---------- */
@@ -2067,7 +2127,7 @@ function csvCompute() {
     const n = m.desc >= 0 ? String(r[m.desc] || "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
     rows.push({ d, a, n, c: csvCategory(m.cat >= 0 ? r[m.cat] : "", n, a) });
   }
-  if (tol < 0) return { out: rows, probable: [], bad, dup: 0 };
+  if (tol < 0) return { out: rows, probable: [], mismatch: [], extra: [], range: null, bad, dup: 0 };
   // movements already in the app, by amount; each one can match only one row of the file
   const pool = new Map(); const add = (t) => { const k = Number(t.a).toFixed(2); if (!pool.has(k)) pool.set(k, []); pool.get(k).push({ t, used: false }); };
   for (const t of allTx()) add(t);
@@ -2084,11 +2144,31 @@ function csvCompute() {
     if (tol > 0) for (const x of pool.get(r.a.toFixed(2)) || []) { if (x.used) continue; const dd = Math.abs(daysBetween(x.t.d, r.d)); if (dd <= tol && dd < bd) { best = x; bd = dd; } }
     if (best) { best.used = true; probable.push({ ...r, match: best.t, days: bd }); } else out.push(r);
   }
-  return { out, probable, bad, dup };
+  // pass 3: in the same days, an app movement with a slightly different amount (a few cents, or digits swapped)
+  const unused = []; for (const arr of pool.values()) for (const x of arr) if (!x.used && x.t.i) unused.push(x);
+  const mismatch = []; const out2 = [];
+  const win = Math.max(tol, 1);
+  for (const r of out) {
+    let best = null, bd = Infinity;
+    for (const x of unused) {
+      if (x.used || Math.sign(x.t.a) !== Math.sign(r.a)) continue;
+      const dd = Math.abs(daysBetween(x.t.d, r.d)); if (dd > win) continue;
+      const dc = Math.abs(cents(x.t.a) - cents(r.a)); if (dc === 0) continue;
+      const close = dc <= 100 || oneTypo(x.t.a, r.a);
+      if (close && dd < bd) { best = x; bd = dd; }
+    }
+    if (best) { best.used = true; mismatch.push({ ...r, match: best.t, days: bd }); } else out2.push(r);
+  }
+  // movements in Prisma inside the statement's dates that the bank doesn't have
+  const ds = rows.map((r) => r.d).sort(); const range = ds.length ? [ds[0], ds[ds.length - 1]] : null;
+  const extra = range ? unused.filter((x) => !x.used && x.t.d >= range[0] && x.t.d <= range[1]).map((x) => x.t).sort(byDateDesc) : [];
+  const bankSum = round2(rows.reduce((acc, r) => acc + r.a, 0));
+  const appSum = range ? round2(allTx().filter((t) => t.d >= range[0] && t.d <= range[1]).reduce((acc, t) => acc + t.a, 0)) : 0;
+  return { out: out2, probable, mismatch, extra, range, bankSum, appSum, bad, dup };
 }
 function csvRender() {
   const C = S.csv; const ok = C.map.date >= 0 && (C.map.amount >= 0 || C.map.out >= 0 || C.map.inc >= 0);
-  const res = ok ? csvCompute() : { out: [], probable: [], bad: C.data.length, dup: 0 }; C.result = res;
+  const res = ok ? csvCompute() : { out: [], probable: [], mismatch: [], extra: [], range: null, bad: C.data.length, dup: 0 }; C.result = res;
   if (!C.pick) C.pick = new Set();
   for (const i of [...C.pick]) if (i >= res.probable.length) C.pick.delete(i);
   const chosen = [...res.out, ...res.probable.filter((_, i) => C.pick.has(i))];
@@ -2100,6 +2180,7 @@ function csvRender() {
     el("div", {}, el("b", { text: `${chosen.length} moviment${chosen.length === 1 ? "o" : "i"} da aggiungere` }), ds.length ? ` dal ${fmt(ds[0])} al ${fmt(ds[ds.length - 1])}` : ""),
     chosen.length ? el("div", {}, el("span", { class: "pos", text: `entrate ${eurS(round2(inc))}` }), " · ", el("span", { class: "neg", text: `uscite ${eurS(round2(outS))}` })) : null,
     res.dup ? el("div", { text: res.dup === 1 ? "1 già presente con la stessa data: lo salto." : `${res.dup} già presenti con la stessa data: li salto.` }) : null,
+    res.mismatch && res.mismatch.length ? el("div", { class: "warn", text: `${res.mismatch.length} con importo diverso da quello in Prisma: li trovi qui sotto, non li importo.` }) : null,
     np ? el("div", { class: "warn", text: np === 1 ? "1 probabile doppione (stesso importo, data vicina): controllalo qui sotto." : `${np} probabili doppioni (stesso importo, data vicina): controllali qui sotto.` }) : null,
     res.bad ? el("div", { class: "muted", text: res.bad === 1 ? "1 riga senza data o importo validi: la ignoro." : `${res.bad} righe senza data o importo validi: le ignoro.` }) : null,
     chosen.length ? el("div", {}, "Saldo del conto: ", el("b", { text: eur(bal) }), " → ", el("b", { text: eur(after) })) : null,
@@ -2118,6 +2199,33 @@ function csvRender() {
     })] : []));
   $("#csv-preview").replaceChildren(...(res.out.length ? [el("div", { class: "dayhead" }, el("span", { text: "Nuovi movimenti" }), el("span", { text: res.out.length > 8 ? `primi 8 di ${res.out.length}` : "" })),
     ...res.out.slice(0, 8).map((t) => { const c = catById(t.c); return el("div", { class: "tx" }, icon(c), el("span", { style: "min-width:0" }, el("div", { class: "t1", text: t.n || c.name }), el("div", { class: "t2", text: `${fmt(t.d)} · ${c.name}` })), el("span", { class: "a " + (t.a >= 0 ? "pos" : "neg"), text: eurS(t.a) })); })] : []));
+  // comparison: wrong amounts and movements the bank doesn't have
+  const rc = [];
+  if (res.range) {
+    const diff = round2(res.bankSum - res.appSum);
+    rc.push(el("div", { class: "banner csvsum", style: "margin-top:6px" },
+      el("div", {}, el("b", { text: "Confronto con l'estratto conto" }), ` dal ${fmt(res.range[0])} al ${fmt(res.range[1])}`),
+      el("div", {}, `Movimenti in banca ${eurS(res.bankSum)} · in Prisma ${eurS(res.appSum)}`),
+      el("div", { class: Math.abs(diff) < 0.005 ? "pos" : "warn", text: Math.abs(diff) < 0.005 ? "✓ In questo periodo i totali coincidono." : `Differenza nel periodo: ${eurS(diff)}. Qui sotto trovi da dove viene.` })));
+  }
+  if (res.mismatch.length) {
+    rc.push(el("div", { class: "dayhead" }, el("span", { text: "Importi diversi" }), el("span", { text: res.mismatch.length })));
+    for (const t of res.mismatch) rc.push(el("div", { class: "sugg" },
+      el("span", { style: "min-width:0" }, el("div", { class: "t1", text: `${t.match.n || catById(t.match.c).name} · ${fmt(t.match.d)}` })),
+      el("button", { class: "btn", type: "button", onclick: async () => {
+        const mk = monthKeyOf(t.match.d);
+        try { await writeMonth(mk, cloneTx(mk).map((x) => (x.i === t.match.i ? { ...x, a: t.a } : x))); toast(`Corretto in ${eurS(t.a)}.`); csvRender(); } catch (_) {}
+      } }, "Usa importo banca"),
+      el("div", { class: "why", text: `In Prisma ${eurS(t.match.a)}, in banca ${eurS(t.a)} («${t.n || "senza descrizione"}» del ${fmt(t.d)}): differenza ${eurS(round2(t.a - t.match.a))}.` })));
+  }
+  if (res.extra.length) {
+    rc.push(el("div", { class: "dayhead" }, el("span", { text: "In Prisma ma non in banca" }), el("span", { text: res.extra.length })));
+    for (const t of res.extra.slice(0, 20)) rc.push(el("div", { class: "sugg" },
+      el("span", { style: "min-width:0" }, el("div", { class: "t1", text: `${t.n || catById(t.c).name} · ${fmt(t.d)} · ${eurS(t.a)}` })),
+      el("button", { class: "btn", type: "button", onclick: () => { $("#csv-sheet").hidden = true; openTx(t); } }, "Apri"),
+      el("div", { class: "why", text: "Non lo trovo nell'estratto conto: forse è segnato due volte, non è ancora contabilizzato o è stato pagato in contanti/Satispay." })));
+  }
+  $("#csv-recon").replaceChildren(...rc);
   C.chosen = chosen;
   const go = $("#csv-go"); go.disabled = !chosen.length; go.textContent = chosen.length ? `Importa ${chosen.length} moviment${chosen.length === 1 ? "o" : "i"}` : "Niente da importare";
 }
@@ -2190,6 +2298,7 @@ function bind() {
     closeDrawer(); renderAll();
   });
   for (const b of $$("#dnav .ditem")) b.addEventListener("click", () => { S.lf = null; closeDrawer(); if (location.hash === "#" + b.dataset.go) renderAll(); else location.hash = b.dataset.go; });
+  $("#btn-diff-help").addEventListener("click", renderDiffHelp);
   $("#btn-saldo").addEventListener("click", () => { $("#check-panel").hidden = true; $("#btn-check").hidden = false; $("#saldo-sheet").hidden = false; });
   $("#home-out").addEventListener("click", () => openTx(null, { kind: "out" }));
   $("#home-in").addEventListener("click", () => openTx(null, { kind: "in" }));
