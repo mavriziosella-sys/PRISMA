@@ -533,9 +533,10 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
     <div class="card" id="fees-card"></div>
     <div class="card" id="checkup-card">
-      <h2 id="checkup-title">Check-up del mese con Claude</h2>
-      <div class="small muted">Copio un riepilogo del periodo già pronto: lo incolli in una chat con Claude e ricevi l'analisi con tre cose da fare.</div>
-      <div class="row wrap"><button id="btn-copy" class="btn primary">Copia il riepilogo</button><a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Apri Claude</a></div>
+      <h2 id="checkup-title">Check-up del mese con l'AI</h2>
+      <div class="small muted">Copio un riepilogo del periodo già pronto e apro l'AI che scegli tu: incolli, invii e ricevi l'analisi con tre cose da fare.</div>
+      <div class="chips" id="ai-pick" role="group" aria-label="Quale AI"></div>
+      <div class="row wrap"><button id="btn-ask-ai" class="btn primary" type="button">Chiedi all'AI</button><button id="btn-copy" class="btn" type="button">Copia soltanto</button></div>
       <div id="copy-status" class="small"></div>
       <div id="copy-box"></div>
     </div>
@@ -562,7 +563,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
     </div>
     <div class="card">
       <h2>Note per il check-up</h2>
-      <div class="small muted">Situazione e obiettivi da includere nel riepilogo per Claude.</div>
+      <div class="small muted">Situazione e obiettivi da includere nel riepilogo per l'AI.</div>
       <label class="field" for="coach-notes"><span>Note</span><textarea id="coach-notes" placeholder="es. obiettivo fondo emergenza 5.000 €, rata del prestito, spese grandi in arrivo…"></textarea></label>
       <div class="row"><button id="btn-save-notes" class="btn">Salva note</button><span id="notes-status" class="small muted"></span></div>
     </div>
@@ -595,7 +596,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.6.1</div>
+      <div class="small muted">Prisma · versione 3.6.2</div>
     </div>
   </section>
 </main>
@@ -1256,7 +1257,7 @@ function renderBalance() {
   const hc = $("#home-check"); hc.className = "st " + (okb ? "pos" : "warn");
   hc.textContent = okb ? `✓ tornava il ${fmtD(lc2.date)}` : "tocca per controllare con la banca";
   if (show) $("#backup-nudge-text").textContent = days == null ? "Non hai ancora fatto un backup dei dati." : `Ultimo backup ${days} giorni fa.`;
-  $("#checkup-title").textContent = `Check-up ${perOf(S.per)} con Claude`;
+  $("#checkup-title").textContent = `Check-up ${perOf(S.per)} con l'AI`;
 }
 function renderPanoramica() { renderHome(); }
 function renderCheckResult() {
@@ -1415,7 +1416,7 @@ function renderBudget() {
 
 /* ---------- render: analisi ---------- */
 function renderAnalisi() {
-  renderPace(); renderFees();
+  renderPace(); renderFees(); renderAiPick();
   const keys = []; for (let i = 11; i >= 0; i--) keys.push(addMonths(curMonthKey(), -i));
   const data = keys.map((k) => { let inc = 0, out = 0; for (const t of S.months.get(k) || []) { if (isGiro(t) || (!S.inclBig && Math.abs(t.a) >= BIG)) continue; if (t.a > 0) inc += t.a; else out -= t.a; } return { k, inc, out }; });
   const max = Math.max(1, ...data.map((d) => Math.max(d.inc, d.out)));
@@ -1670,7 +1671,7 @@ function validateData(d) {
   const cfg = {
     version: 1, startBalance: round2(Number(d.startBalance) || 0), startDate: d.startDate || null,
     categories: d.categories.map((c) => ({ id: String(c.id), name: String(c.name || c.id), emoji: String(c.emoji || "•"), hue: Number(c.hue) || 0, kind: ["in", "out", "any", "giro"].includes(c.kind) ? c.kind : "out", cap: Number(c.cap) > 0 ? Number(c.cap) : null, archived: !!c.archived })),
-    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [], aliases: d.aliases && typeof d.aliases === "object" ? d.aliases : {},
+    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [], aliases: d.aliases && typeof d.aliases === "object" ? d.aliases : {}, ai: typeof d.ai === "string" ? d.ai : null,
     lastCheck: d.lastCheck && d.lastCheck.date ? d.lastCheck : null,
     notes: typeof d.notes === "string" ? d.notes : "",
     lastBackup: d.lastBackup || null, importedAt: new Date().toISOString(),
@@ -1701,7 +1702,7 @@ async function importFromFile(file, statusEl) {
 }
 function exportData() {
   const months = {}; for (const k of [...S.months.keys()].sort()) months[k] = S.months.get(k);
-  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], aliases: S.cfg.aliases || {}, months };
+  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], aliases: S.cfg.aliases || {}, ai: S.cfg.ai || null, months };
 }
 async function backup() {
   if (!S.cfg) return;
@@ -1774,12 +1775,27 @@ function buildCheckupPrompt(P) {
     ...goalLines(), ...nwLines(),
   ].join("\n");
 }
+const AIS = [["claude", "Claude", "https://claude.ai/new"], ["chatgpt", "ChatGPT", "https://chatgpt.com/"], ["gemini", "Gemini", "https://gemini.google.com/app"], ["copilot", "Copilot", "https://copilot.microsoft.com/"],
+  ["perplexity", "Perplexity", "https://www.perplexity.ai/"], ["mistral", "Le Chat", "https://chat.mistral.ai/chat"], ["deepseek", "DeepSeek", "https://chat.deepseek.com/"], ["grok", "Grok", "https://grok.com/"]];
+const aiChoice = () => AIS.find((a) => a[0] === (S.cfg && S.cfg.ai)) || AIS[0];
+function renderAiPick() {
+  const cur = aiChoice()[0];
+  $("#ai-pick").replaceChildren(...AIS.map(([id, name]) => el("button", { type: "button", class: "chipbtn", "aria-pressed": String(id === cur), onclick: async () => { try { await writeCfg({ ...S.cfg, ai: id }); } catch (_) {} } }, name)));
+  $("#btn-ask-ai").textContent = `Chiedi a ${aiChoice()[1]}`;
+}
+function askAi() { // copy and open in the same tap: iPhone allows both only during the tap
+  const [, name, url] = aiChoice(); const text = buildCheckupPrompt(S.per); const st = $("#copy-status");
+  let p; try { p = navigator.clipboard.writeText(text); } catch (e) { p = Promise.reject(e); }
+  window.open(url, "_blank", "noopener");
+  p.then(() => { st.className = "small pos"; st.textContent = `✓ Copiato. In ${name} tieni premuto, Incolla e invia.`; $("#copy-box").replaceChildren(); })
+    .catch(() => copySummary());
+}
 async function copySummary() {
   const text = buildCheckupPrompt(S.per); const st = $("#copy-status"); const box = $("#copy-box");
   box.replaceChildren();
   try {
     await navigator.clipboard.writeText(text);
-    st.className = "small pos"; st.textContent = "✓ Copiato. Tocca «Apri Claude», incolla in una chat nuova e invia.";
+    st.className = "small pos"; st.textContent = `✓ Copiato. Aprilo in ${aiChoice()[1]} (o in un'altra AI), incolla in una chat nuova e invia.`;
   } catch (_) {
     const ta = el("textarea", { readonly: true, "aria-label": "Riepilogo da copiare", style: "font-size:12px;min-height:160px" }); ta.value = text;
     box.replaceChildren(ta); ta.focus(); ta.select();
@@ -2705,6 +2721,7 @@ function bind() {
   $("#btn-restore-yes").addEventListener("click", doRestore);
   $("#btn-restore-no").addEventListener("click", () => { $("#restore-confirm").hidden = true; S.pendingRestore = null; });
   $("#btn-copy").addEventListener("click", copySummary);
+  $("#btn-ask-ai").addEventListener("click", askAi);
   $("#btn-save-notes").addEventListener("click", saveNotes);
   $("#bseg-tetti").addEventListener("click", () => { S.bseg = "tetti"; renderAll(); });
   $("#bseg-obiettivi").addEventListener("click", () => { S.bseg = "obiettivi"; renderAll(); });
