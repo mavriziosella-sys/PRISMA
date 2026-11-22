@@ -562,6 +562,12 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       </div>
     </div>
     <div class="card">
+      <h2>Stipendio</h2>
+      <div class="small muted" id="pay-info">Se il tuo mese di spesa va da stipendio a stipendio, scrivi il giorno in cui arriva.</div>
+      <div class="row"><label class="field" for="pay-day" style="flex:1"><span>Giorno dello stipendio (vuoto = mese di calendario)</span><input id="pay-day" inputmode="numeric" maxlength="2" placeholder="es. 27"></label><button id="btn-pay-save" class="btn" type="button" style="align-self:flex-end">Salva</button></div>
+      <label class="toggle" for="pay-default"><input type="checkbox" id="pay-default"> Apri Prisma sul mese da stipendio a stipendio</label>
+    </div>
+    <div class="card">
       <h2>Note per il check-up</h2>
       <div class="small muted">Situazione e obiettivi da includere nel riepilogo per l'AI.</div>
       <label class="field" for="coach-notes"><span>Note</span><textarea id="coach-notes" placeholder="es. obiettivo fondo emergenza 5.000 €, rata del prestito, spese grandi in arrivo…"></textarea></label>
@@ -596,7 +602,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.6.2</div>
+      <div class="small muted">Prisma · versione 3.7</div>
     </div>
   </section>
 </main>
@@ -720,6 +726,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <button type="button" data-pt="day">Giorno</button><button type="button" data-pt="week">Settimana</button>
       <button type="button" data-pt="month">Mese</button><button type="button" data-pt="year">Anno</button>
       <button type="button" data-pt="all">Tutto</button><button type="button" data-pt="custom">Intervallo</button>
+      <button type="button" data-pt="paga" id="dper-paga" style="grid-column:1/-1" hidden>Da stipendio a stipendio</button>
     </div>
     <div class="drange" id="drange" hidden>
       <div class="chips" id="per-quick"></div>
@@ -865,12 +872,20 @@ const perYear = (y) => ({ type: "year", start: `${y}-01-01`, end: `${y}-12-31` }
 const perCustom = (a, b) => (a <= b ? { type: "custom", start: a, end: b } : { type: "custom", start: b, end: a });
 const perWeek = (d) => { const s0 = addDays(d, -((dtOf(d).getDay() + 6) % 7)); return { type: "week", start: s0, end: addDays(s0, 6) }; };
 const perAll = () => ({ type: "all", start: firstDate(), end: todayISO() });
+// pay month: from payday to the day before the next one (the salary of the 27th is next month's budget)
+const payday = () => { const n = Number(S.cfg && S.cfg.payday); return n >= 1 && n <= 31 ? n : null; };
+const payDayIn = (key) => Math.min(payday() || 1, daysIn(key));
+function perPay(d) {
+  let k = d.slice(0, 7); if (Number(d.slice(8)) < payDayIn(k)) k = addMonths(k, -1);
+  const k2 = addMonths(k, 1); return { type: "paga", start: `${k}-${pad(payDayIn(k))}`, end: addDays(`${k2}-${pad(payDayIn(k2))}`, -1) };
+}
 function stepPer(P, n) {
   if (P.type === "day") return perDay(addDays(P.start, n));
   if (P.type === "month") return perMonth(addMonths(P.start.slice(0, 7), n));
   if (P.type === "year") return perYear(Number(P.start.slice(0, 4)) + n);
   if (P.type === "week") return perWeek(addDays(P.start, 7 * n));
   if (P.type === "all") return P;
+  if (P.type === "paga") { const k = addMonths(P.start.slice(0, 7), n); return perPay(`${k}-${pad(payDayIn(k))}`); }
   const len = daysBetween(P.start, P.end) + 1;
   return perCustom(addDays(P.start, n * len), addDays(P.end, n * len));
 }
@@ -884,6 +899,7 @@ function perLabel(P) {
   if (P.type === "month") return cap1(monthLabel(P.start.slice(0, 7)));
   if (P.type === "year") return P.start.slice(0, 4);
   if (P.type === "all") return "Tutto";
+  if (P.type === "paga") return `${cap1(monthName(P.end.slice(0, 7)))} · ${fmtD(P.start)}–${fmtD(P.end)}`;
   if (P.type === "week" && perContains(P, todayISO())) return "Questa settimana";
   return `${fmtD(P.start, P.start.slice(0, 4) !== P.end.slice(0, 4))} – ${fmtD(P.end, true)}`;
 }
@@ -893,9 +909,10 @@ function perOf(P) {
   if (P.type === "day") return P.start === todayISO() ? "di oggi" : P.start === shiftDays(-1) ? "di ieri" : "del " + fmtD(P.start);
   if (P.type === "week") return "della settimana";
   if (P.type === "all") return "di sempre";
+  if (P.type === "paga") return `di ${monthName(P.end.slice(0, 7))} (da stipendio a stipendio)`;
   return "del periodo";
 }
-const perWord = (P) => (P.type === "month" ? "mese" : P.type === "year" ? "anno" : P.type === "day" ? "giorno" : P.type === "week" ? "settimana" : "periodo");
+const perWord = (P) => (P.type === "month" || P.type === "paga" ? "mese" : P.type === "year" ? "anno" : P.type === "day" ? "giorno" : P.type === "week" ? "settimana" : "periodo");
 const perKeys = (P) => { const out = []; let k = P.start.slice(0, 7); const e = P.end.slice(0, 7); while (k <= e) { out.push(k); k = addMonths(k, 1); } return out; };
 const perContains = (P, d) => d >= P.start && d <= P.end;
 
@@ -968,7 +985,7 @@ function perCatSpend(P, inclBig) {
   return { m, excluded };
 }
 function perNetByCat(P) { const m = new Map(); for (const t of perTx(P)) m.set(t.c, (m.get(t.c) || 0) - t.a); return m; }
-const capFactor = (P) => (P.type === "month" ? 1 : P.type === "year" ? 12 : (daysBetween(P.start, P.end) + 1) / 30.44);
+const capFactor = (P) => (P.type === "month" || P.type === "paga" ? 1 : P.type === "year" ? 12 : (daysBetween(P.start, P.end) + 1) / 30.44);
 function setPer(P) { S.per = P; S.month = P.end.slice(0, 7); S.sel = null; }
 function spentBy(key, catId) { let s = 0; for (const t of S.months.get(key) || []) if (t.c === catId) s += t.a; return round2(-s); }
 function usage(catId) { let n = 0; for (const arr of S.months.values()) for (const t of arr) if (t.c === catId) n++; return n; }
@@ -1196,6 +1213,7 @@ function renderPace() {
       cmp = [0]; for (let i = 1; i <= N; i++) cmp[i] = prev.reduce((acc, c) => acc + c[Math.min(i, c.length - 1)], 0) / 3;
       cmpName = "Media 3 mesi prima"; vs = "la media"; curName = cap1(monthName(P.start.slice(0, 7)));
     } else if (P.type === "week") { cmp = cumDaily(stepPer(P, -1)); cmpName = "Settimana prima"; vs = "la settimana prima"; curName = perContains(P, today) ? "Questa settimana" : "Settimana"; }
+    else if (P.type === "paga") { cmp = cumDaily(stepPer(P, -1)); cmpName = "Mese di stipendio prima"; vs = "il mese prima"; curName = cap1(monthName(P.end.slice(0, 7))); }
     else { cmp = P.type === "all" ? [0] : cumDaily(stepPer(P, -1)); cmpName = "Periodo precedente"; vs = "il periodo prima"; curName = "Questo periodo"; }
     upto = today > P.end ? N : today < P.start ? 0 : daysBetween(P.start, today) + 1;
     const q = (f) => Math.max(1, Math.round(1 + (N - 1) * f));
@@ -1460,7 +1478,20 @@ function renderAnalisi() {
 }
 
 /* ---------- render: altro ---------- */
+function detectPayday() { const r = recurringList().filter((x) => x.a > 0).sort((a, b) => b.a - a.a)[0]; return r && r.a >= 500 ? r : null; }
+function renderPayCard() {
+  const pd = payday(); const inp = $("#pay-day"); if (document.activeElement !== inp) inp.value = pd || "";
+  $("#pay-default").checked = !!(S.cfg && S.cfg.payStart); $("#pay-default").disabled = !pd;
+  const det = detectPayday();
+  $("#pay-info").textContent = pd ? `Il mese di spesa va dal ${pd} al giorno prima dello stipendio dopo: lo usano il check-up, il saldo previsto e il periodo «Da stipendio a stipendio» nel menu.` : det ? `Se il tuo mese di spesa va da stipendio a stipendio, scrivi il giorno in cui arriva. «${det.n}» arriva di solito il ${det.day}.` : "Se il tuo mese di spesa va da stipendio a stipendio, scrivi il giorno in cui arriva.";
+}
+async function savePayday() {
+  const raw = $("#pay-day").value.trim(); const n = raw ? Number(raw) : null;
+  if (raw && !(Number.isInteger(n) && n >= 1 && n <= 31)) { toast("Scrivi un giorno da 1 a 31, oppure lascia vuoto."); return; }
+  try { const c = { ...S.cfg, payday: n || null }; if (!n) c.payStart = false; await writeCfg(c); if (n && S.per.type === "month") { setPer(perPay(todayISO())); renderAll(); } toast(n ? `Mese da stipendio a stipendio: dal ${n}.` : "Torno al mese di calendario."); } catch (_) {}
+}
 function renderAltro() {
+  renderPayCard();
   renderLockCard();
   const groups = [["Spese", (c) => !c.archived && c.kind === "out"], ["Entrate", (c) => !c.archived && c.kind === "in"], ["Entrambe", (c) => !c.archived && c.kind === "any"], ["Giroconti (non contano come spese)", (c) => !c.archived && c.kind === "giro"], ["Archiviate", (c) => c.archived]];
   const out = [];
@@ -1671,7 +1702,7 @@ function validateData(d) {
   const cfg = {
     version: 1, startBalance: round2(Number(d.startBalance) || 0), startDate: d.startDate || null,
     categories: d.categories.map((c) => ({ id: String(c.id), name: String(c.name || c.id), emoji: String(c.emoji || "•"), hue: Number(c.hue) || 0, kind: ["in", "out", "any", "giro"].includes(c.kind) ? c.kind : "out", cap: Number(c.cap) > 0 ? Number(c.cap) : null, archived: !!c.archived })),
-    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [], aliases: d.aliases && typeof d.aliases === "object" ? d.aliases : {}, ai: typeof d.ai === "string" ? d.ai : null,
+    goals: Array.isArray(d.goals) ? d.goals : [], assets: Array.isArray(d.assets) ? d.assets : [], aliases: d.aliases && typeof d.aliases === "object" ? d.aliases : {}, ai: typeof d.ai === "string" ? d.ai : null, payday: Number(d.payday) >= 1 && Number(d.payday) <= 31 ? Number(d.payday) : null, payStart: !!d.payStart,
     lastCheck: d.lastCheck && d.lastCheck.date ? d.lastCheck : null,
     notes: typeof d.notes === "string" ? d.notes : "",
     lastBackup: d.lastBackup || null, importedAt: new Date().toISOString(),
@@ -1702,7 +1733,7 @@ async function importFromFile(file, statusEl) {
 }
 function exportData() {
   const months = {}; for (const k of [...S.months.keys()].sort()) months[k] = S.months.get(k);
-  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], aliases: S.cfg.aliases || {}, ai: S.cfg.ai || null, months };
+  return { app: "le-mie-spese", format: 1, exportedAt: new Date().toISOString(), startBalance: S.cfg.startBalance, startDate: S.cfg.startDate, categories: S.cfg.categories, lastCheck: S.cfg.lastCheck || null, notes: S.cfg.notes || "", goals: S.cfg.goals || [], assets: S.cfg.assets || [], aliases: S.cfg.aliases || {}, ai: S.cfg.ai || null, payday: S.cfg.payday || null, payStart: !!S.cfg.payStart, months };
 }
 async function backup() {
   if (!S.cfg) return;
@@ -1735,7 +1766,7 @@ function askPersist() { try { if (navigator.storage && navigator.storage.persist
 
 /* ---------- check-up summary for Claude ---------- */
 function buildCheckupPrompt(P) {
-  const isM = P.type === "month"; const w = perWord(P);
+  const isM = P.type === "month" || P.type === "paga"; const w = perWord(P);
   const prevs = isM ? [1, 2, 3].map((n) => stepPer(P, -n)) : [stepPer(P, -1)];
   const isCur = perContains(P, todayISO()); const f = capFactor(P);
   const net = perNetByCat(P); const prevNets = prevs.map(perNetByCat);
@@ -1756,6 +1787,7 @@ function buildCheckupPrompt(P) {
     `Analizza il mio ${w} usando SOLO i numeri qui sotto: non inventare cifre.`,
     "Parla di spese, budget, debiti e risparmio; non consigliarmi prodotti finanziari o investimenti specifici.",
     isCur ? `Il ${w} è in corso (oggi è il ${todayISO()}): i totali non sono definitivi.` : `Il ${w} è concluso.`,
+    ...(payday() ? [`Prendo lo stipendio il giorno ${payday()} di ogni mese e lo uso come budget per il mese successivo: per me il mese di spesa va dal ${payday()} al giorno prima dello stipendio dopo.${P.type === "paga" ? "" : " Il periodo qui sotto è invece il mese di calendario: tienine conto (per esempio lo stipendio di fine mese serve al mese dopo)."}`] : []),
     "",
     "Formato (massimo 220 parole):",
     `### Com'è andato il ${w} — due o tre frasi`,
@@ -1832,7 +1864,7 @@ function recurringList() {
     if (!String(t.n || "").trim() || t.c === "rettifiche") continue;
     const key = vkey(t.n) + "|" + t.c; let e = g.get(key); if (!e) { e = { key, vk: vkey(t.n), c: t.c, tx: [] }; g.set(key, e); } e.tx.push(t);
   }
-  const cur = S.months.get(ck) || []; const out = [];
+  const cyc = payday() ? perPay(todayISO()) : perMonth(ck); const cur = perTx(cyc); const out = [];
   for (const e of g.values()) {
     const months = new Set(e.tx.map((t) => monthKeyOf(t.d)));
     if ([...months].filter((m) => last4.has(m)).length < 3 || !(months.has(past[0]) || months.has(past[1]))) continue;
@@ -1842,40 +1874,42 @@ function recurringList() {
     if (e.tx.filter((t) => Math.abs(t.a - med) <= Math.abs(med) * 0.25).length / e.tx.length < 0.75) continue;
     const day = Math.round(median(e.tx.map((t) => Number(t.d.slice(8)))));
     const seen = cur.filter((t) => vkey(t.n) === e.vk && t.c === e.c).sort(byDateDesc);
-    out.push({ key: e.key, n: sorted[0].n, c: e.c, a: round2(med), day, seen, count: e.tx.length });
+    // when it is due inside this cycle
+    let due = null; for (const k of perKeys(cyc)) { const d = `${k}-${pad(Math.min(day, daysIn(k)))}`; if (d >= cyc.start && d <= cyc.end) { due = d; break; } }
+    out.push({ key: e.key, n: sorted[0].n, c: e.c, a: round2(med), day, due: due || cyc.end, seen, count: e.tx.length });
   }
-  return out.sort((a, b) => a.day - b.day);
+  return out.sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0));
 }
 function forecast() {
-  const ck = curMonthKey(); const t0 = todayISO(); const left = daysIn(ck) - Number(t0.slice(8));
+  const ck = curMonthKey(); const t0 = todayISO(); const cyc = payday() ? perPay(t0) : perMonth(ck); const left = daysBetween(t0, cyc.end);
   const rec = recurringList(); const pending = rec.filter((r) => !r.seen.length);
   const recSum = round2(pending.reduce((acc, r) => acc + r.a, 0));
   const recKeys = new Set(rec.map((r) => r.key)); let vs = 0, days = 0;
   for (const n of [1, 2, 3]) { const k = addMonths(ck, -n); days += daysIn(k); for (const t of S.months.get(k) || []) { if (recKeys.has(vkey(t.n) + "|" + t.c) || Math.abs(t.a) >= BIG) continue; vs += spendOf(t); } }
   const perDay = days ? vs / days : 0; const varLeft = round2(-perDay * left);
-  const late = pending.filter((r) => Number(t0.slice(8)) > Math.min(r.day, daysIn(ck)) + 3);
-  return { now: balance(), rec, pending, late, recSum, perDay, varLeft, left, end: round2(balance() + recSum + varLeft) };
+  const late = pending.filter((r) => daysBetween(r.due, t0) > 3);
+  return { now: balance(), rec, pending, late, recSum, perDay, varLeft, left, cyc, end: round2(balance() + recSum + varLeft) };
 }
 function renderRecurring() {
   const f = forecast(); const ck = curMonthKey(); const td = Number(todayISO().slice(8));
   const row = (r) => {
-    const c = catById(r.c); const seen = r.seen[0]; const late = !seen && td > Math.min(r.day, daysIn(ck)) + 3;
-    const st = seen ? el("span", { class: "pos", text: `✓ il ${fmtD(seen.d)}` }) : late ? el("span", { class: "warn", text: `manca? di solito verso il ${r.day}` }) : el("span", { text: `in arrivo verso il ${r.day}` });
+    const c = catById(r.c); const seen = r.seen[0]; const late = !seen && daysBetween(r.due, todayISO()) > 3;
+    const st = seen ? el("span", { class: "pos", text: `✓ il ${fmtD(seen.d)}` }) : late ? el("span", { class: "warn", text: `manca? di solito verso il ${fmtD(r.due)}` }) : el("span", { text: `in arrivo verso il ${fmtD(r.due)}` });
     return el("button", { class: "tx", type: "button", onclick: () => (seen ? openTx(seen) : openTx(null, { n: r.n, c: r.c, a: r.a, d: todayISO() })) }, icon(c),
       el("span", { style: "min-width:0" }, el("div", { class: "t1", text: r.n }), el("div", { class: "t2" }, st)),
       el("span", { class: "a " + (r.a >= 0 ? "pos" : "neg"), text: eurS(r.a) }));
   };
   const pend = f.pending.slice().sort((a, b) => (f.late.includes(b) - f.late.includes(a)) || a.day - b.day); const done = f.rec.filter((r) => r.seen.length);
   $("#b-ricorrenti").replaceChildren(
-    el("div", { class: "card" }, el("div", { class: "eyebrow", text: `Saldo previsto a fine ${monthName(ck)}` }), el("div", { class: "pace-head" }, el("div", { class: "big", text: eur0(f.end) })),
+    el("div", { class: "card" }, el("div", { class: "eyebrow", text: payday() ? `Saldo previsto il ${fmtD(f.cyc.end)}, prima dello stipendio` : `Saldo previsto a fine ${monthName(ck)}` }), el("div", { class: "pace-head" }, el("div", { class: "big", text: eur0(f.end) })),
       el("div", { class: "csvsum" }, el("div", {}, `Oggi sul conto: `, el("b", { text: eur(f.now) })),
         el("div", {}, `Ricorrenti ancora da arrivare: `, el("b", { class: f.recSum >= 0 ? "pos" : "neg", text: eurS(f.recSum) })),
         el("div", {}, `Spese di tutti i giorni previste: `, el("b", { class: "neg", text: eurS(f.varLeft) }))),
       el("div", { class: "small muted", text: `Le spese di tutti i giorni sono la media degli ultimi 3 mesi (${nf2.format(f.perDay)} € al giorno) per i ${f.left} giorni che restano, senza ricorrenti e senza movimenti sopra 5.000 €.` })),
-    el("div", { class: "card" }, el("h2", { text: `Ancora da arrivare a ${monthName(ck)}` }),
+    el("div", { class: "card" }, el("h2", { text: payday() ? "Ancora da arrivare prima dello stipendio" : `Ancora da arrivare a ${monthName(ck)}` }),
       f.late.length ? el("div", { class: "small warn", text: `${f.late.length} di solito ${f.late.length === 1 ? "arriva" : "arrivano"} prima di oggi: controlla di non averl${f.late.length === 1 ? "o" : "i"} dimenticat${f.late.length === 1 ? "o" : "i"}. Tocca per aggiungere.` }) : null,
-      ...(pend.length ? pend.map(row) : [el("div", { class: "empty", text: "Tutti i ricorrenti del mese sono già passati." })])),
-    el("div", { class: "card" }, el("h2", { text: "Già passati questo mese" }), ...(done.length ? done.map(row) : [el("div", { class: "empty", text: "Ancora nessuno." })]),
+      ...(pend.length ? pend.map(row) : [el("div", { class: "empty", text: payday() ? "Prima dello stipendio non arriva altro." : "Tutti i ricorrenti del mese sono già passati." })])),
+    el("div", { class: "card" }, el("h2", { text: payday() ? `Già passati dal ${fmtD(f.cyc.start)}` : "Già passati questo mese" }), ...(done.length ? done.map(row) : [el("div", { class: "empty", text: "Ancora nessuno." })]),
       el("div", { class: "small muted", text: "Ricorrente = stessa voce nella stessa categoria in almeno 3 degli ultimi 4 mesi, una volta al mese, con importo simile." })));
 }
 
@@ -1923,7 +1957,7 @@ function renderRefunds() {
 function renderSaldoExtra() {
   const f = forecast(); const owed = round2(owedGroups().reduce((acc, g) => acc + g.total, 0));
   $("#saldo-extra").replaceChildren(...[
-    el("button", { class: "btn soft block", type: "button", onclick: () => goBudget("ricorrenti") }, `📅 Previsto a fine ${monthName(curMonthKey())}: ${eur0(f.end)}${f.late.length ? ` · ${f.late.length} ricorrent${f.late.length === 1 ? "e manca" : "i mancano"}` : ""}`),
+    el("button", { class: "btn soft block", type: "button", onclick: () => goBudget("ricorrenti") }, `📅 Previsto ${payday() ? `il ${fmtD(f.cyc.end)}` : `a fine ${monthName(curMonthKey())}`}: ${eur0(f.end)}${f.late.length ? ` · ${f.late.length} ricorrent${f.late.length === 1 ? "e manca" : "i mancano"}` : ""}`),
     owed > 0.005 ? el("button", { class: "btn soft block", type: "button", onclick: () => goBudget("rimborsi") }, `🤝 Ti devono ${eur(owed)}`) : null].filter(Boolean));
 }
 function renderGoals() {
@@ -2636,14 +2670,15 @@ function openDrawer() {
   const quick = [["Ultimi 7 giorni", perCustom(addDays(t, -6), t)], ["Ultimi 30 giorni", perCustom(addDays(t, -29), t)], ["Ultimi 3 mesi", perCustom(`${addMonths(ck, -2)}-01`, t)], ["Mese scorso", perMonth(addMonths(ck, -1))], ["Anno scorso", perYear(y - 1)]];
   $("#per-quick").replaceChildren(...quick.map(([lab, P]) => el("button", { type: "button", class: "chipbtn", onclick: () => { setPer(P); closeDrawer(); renderAll(); } }, lab)));
   $("#per-from").value = S.per.start; $("#per-to").value = S.per.end; $("#per-goto").value = "";
-  $("#drange").hidden = S.per.type !== "custom";
+  $("#drange").hidden = S.per.type !== "custom"; $("#dper-paga").hidden = !payday();
+  if (payday()) $("#dper-paga").textContent = `Da stipendio a stipendio (dal ${payday()})`;
   $("#drawer").hidden = false; renderDrawer();
 }
 function closeDrawer() { $("#drawer").hidden = true; }
 function pickPeriodType(tp) {
   const anchor = perContains(S.per, todayISO()) ? todayISO() : S.per.end;
   if (tp === "custom") { $("#drange").hidden = false; renderDrawer(); $("#per-from").focus(); return; }
-  setPer(tp === "day" ? perDay(anchor) : tp === "week" ? perWeek(anchor) : tp === "month" ? perMonth(anchor.slice(0, 7)) : tp === "year" ? perYear(Number(anchor.slice(0, 4))) : perAll());
+  setPer(tp === "paga" ? perPay(anchor) : tp === "day" ? perDay(anchor) : tp === "week" ? perWeek(anchor) : tp === "month" ? perMonth(anchor.slice(0, 7)) : tp === "year" ? perYear(Number(anchor.slice(0, 4))) : perAll());
   closeDrawer(); renderAll();
 }
 function setupSwipe() {
@@ -2817,6 +2852,8 @@ function setupLock() {
   $("#lock-face").addEventListener("click", () => faceUnlock(false));
   $("#lock-pin-form").addEventListener("submit", pinUnlock);
   $("#lock-cancel").addEventListener("click", () => { LK.after = null; LK.locked = false; $("#lock").hidden = true; });
+  $("#btn-pay-save").addEventListener("click", savePayday);
+  $("#pay-default").addEventListener("change", async (e) => { try { await writeCfg({ ...S.cfg, payStart: e.target.checked }); } catch (_) {} });
   $("#btn-lock-on").addEventListener("click", () => { $("#lock-setup").hidden = false; $("#lock-new-pin").focus(); });
   $("#btn-lock-confirm").addEventListener("click", enableLock);
   $("#btn-lock-off").addEventListener("click", disableLock);
@@ -2862,6 +2899,7 @@ async function boot() {
     banner("Non riesco ad aprire l'archivio dei dati su questo telefono. Se stai navigando in modalità privata, aprila normalmente.");
   }
   S.loaded = true; setupLock(); await migrate();
+  if (payday() && S.cfg.payStart) setPer(perPay(todayISO()));
   if (lockCfg()) { showLock(); faceUnlock(true); }
   renderAll();
   document.addEventListener("visibilitychange", () => { if (!document.hidden && S.cfg) renderAll(); });
