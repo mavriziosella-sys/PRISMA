@@ -570,7 +570,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.1</div>
+      <div class="small muted">Prisma · versione 3.2</div>
     </div>
   </section>
 </main>
@@ -2073,10 +2073,15 @@ function csvDateOrder(data, col) {
   for (const r of data) { const m = String(r[col] || "").match(/^(\d{1,2})[-/.](\d{1,2})[-/.]\d{2,4}/); if (m && Number(m[2]) > 12) return "mdy"; if (m && Number(m[1]) > 12) return "dmy"; }
   return "dmy";
 }
+const MONTH_IDX = (w) => ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"].indexOf(w.slice(0, 3)) >= 0 ? ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"].indexOf(w.slice(0, 3)) : ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"].indexOf(w.slice(0, 3));
 function csvDate(s, order) {
   s = String(s || "").trim(); let m, y, mo, d;
   if (/^\d{5}([.,]\d+)?$/.test(s)) { const n = Math.floor(Number(s.replace(",", "."))); if (n > 25000 && n < 80000) { const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000); return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`; } } // Excel date number
   if ((m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = norm(s).match(/^(?:[a-z]+ )?(\d{1,2}) ([a-z]{3,})(?: (\d{2,4}))?\b/)) && MONTH_IDX(m[2]) >= 0) { // "22 nov 2026", "sab 22 novembre"
+    d = +m[1]; mo = MONTH_IDX(m[2]) + 1; y = m[3] ? +m[3] : Number(todayISO().slice(0, 4)); if (y < 100) y += 2000;
+    if (!m[3] && `${y}-${pad(mo)}-${pad(d)}` > todayISO()) y--;
+  }
   else if ((m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/))) { y = +m[3]; if (y < 100) y += 2000; if (order === "mdy") { mo = +m[1]; d = +m[2]; } else { d = +m[1]; mo = +m[2]; } }
   else return null;
   const dt = new Date(y, mo - 1, d);
