@@ -331,6 +331,15 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 .probrow { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .probrow input { width: 22px; height: 22px; accent-color: var(--accent); }
 .probrow .t2 { white-space: normal; }
+.lock { position: fixed; inset: 0; z-index: 100; background: linear-gradient(155deg, var(--hero-a), var(--hero-b) 60%, var(--hero-c)); color: #fff; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.lock-in { width: min(340px, 100%); display: flex; flex-direction: column; gap: 14px; align-items: stretch; text-align: center; }
+.lock .brand { justify-content: center; font-size: 2rem; } .lock .brand .logo { width: 44px; height: 36px; }
+.lock .btn { background: #fff; color: var(--hero-a); border: 0; padding: 14px; font-size: 1rem; }
+.lock .btn.ghost { background: rgba(255, 255, 255, 0.16); color: #fff; }
+.lock input { background: rgba(255, 255, 255, 0.16) !important; color: #fff !important; border: 0 !important; text-align: center; letter-spacing: 0.3em; }
+.lock input::placeholder { color: rgba(255, 255, 255, 0.75); letter-spacing: 0; }
+.feerow { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.feerow b { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
 .bseg button { flex: 1; padding: 8px 4px; font-size: 0.78rem; }
 .tx .t2 .owe { color: var(--warn); font-weight: 700; }
 .sugg { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -522,6 +531,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <div class="small muted" id="rank-sub"></div>
       <div id="rank" class="legend"></div>
     </div>
+    <div class="card" id="fees-card"></div>
     <div class="card" id="checkup-card">
       <h2 id="checkup-title">Check-up del mese con Claude</h2>
       <div class="small muted">Copio un riepilogo del periodo già pronto: lo incolli in una chat con Claude e ricevi l'analisi con tre cose da fare.</div>
@@ -563,6 +573,17 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
       <label class="btn primary block">Importa estratto conto (CSV o Excel)<input id="csv-file" type="file" hidden></label>
     </div>
     <div class="card">
+      <h2>Blocco con Face ID</h2>
+      <div class="small muted" id="lock-info"></div>
+      <div id="lock-setup" hidden style="display:flex;flex-direction:column;gap:10px">
+        <div class="small">Scegli un PIN di riserva (da 4 a 8 cifre): serve se Face ID non funziona. Poi il telefono ti chiede Face ID per collegarlo a Prisma.</div>
+        <input id="lock-new-pin" type="password" inputmode="numeric" maxlength="8" placeholder="PIN di riserva" aria-label="PIN di riserva" autocomplete="off">
+        <input id="lock-new-pin2" type="password" inputmode="numeric" maxlength="8" placeholder="Ripeti il PIN" aria-label="Ripeti il PIN" autocomplete="off">
+        <button id="btn-lock-confirm" class="btn primary block" type="button">Attiva con Face ID</button>
+      </div>
+      <div class="row wrap"><button id="btn-lock-on" class="btn primary" type="button">Attiva il blocco</button><button id="btn-lock-now" class="btn" type="button" hidden>Blocca adesso</button><button id="btn-lock-off" class="btn danger" type="button" hidden>Disattiva</button></div>
+    </div>
+    <div class="card">
       <h2>Backup completo</h2>
       <div class="small muted" id="backup-info"></div>
       <div class="row wrap">
@@ -574,7 +595,7 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
         <div class="row wrap"><button id="btn-restore-yes" class="btn danger">Sostituisci tutti i dati</button><button id="btn-restore-no" class="btn">Annulla</button></div>
       </div>
       <div class="small muted">Il backup è un file JSON con tutto: movimenti, categorie, obiettivi, patrimonio e note. Il ripristino sostituisce tutti i dati.</div>
-      <div class="small muted">Prisma · versione 3.5.2</div>
+      <div class="small muted">Prisma · versione 3.6</div>
     </div>
   </section>
 </main>
@@ -759,6 +780,18 @@ label.field, div.field { display: flex; flex-direction: column; gap: 6px; }
 </div>
 
 <div id="toast" class="toast" role="status" hidden></div>
+
+<!-- lock screen -->
+<div id="lock" class="lock" hidden>
+  <div class="lock-in">
+    <div class="brand"><svg class="logo" viewBox="0 0 40 32" aria-hidden="true"><path d="M2 21 L13 18" stroke="#fff" stroke-width="2.6" stroke-linecap="round" opacity=".85"/><path d="M19 17 L36 9" stroke="#f0566b" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L38 14" stroke="#f5a623" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L37 19" stroke="#f0d246" stroke-width="2.6" stroke-linecap="round"/><path d="M19 17 L36 24" stroke="#2cc48c" stroke-width="2.6" stroke-linecap="round"/><path d="M14 3.5 Q15.5 1.5 17 3.5 L26 26 Q27 28.5 24.5 28.5 L6.5 28.5 Q4 28.5 5 26 Z" fill="#fff"/></svg>Prisma</div>
+    <div id="lock-title" style="opacity:.9">Prisma è bloccata</div>
+    <button class="btn" id="lock-face" type="button">🔒 Sblocca con Face ID</button>
+    <form id="lock-pin-form" autocomplete="off" style="display:flex;gap:8px"><input id="lock-pin" type="password" inputmode="numeric" maxlength="8" placeholder="oppure il PIN di Prisma" aria-label="PIN di Prisma"><button class="btn ghost" type="submit" style="padding:10px 16px">OK</button></form>
+    <div class="small" id="lock-msg" role="status"></div>
+    <button class="btn ghost" id="lock-cancel" type="button" hidden>Annulla</button>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -1380,7 +1413,7 @@ function renderBudget() {
 
 /* ---------- render: analisi ---------- */
 function renderAnalisi() {
-  renderPace();
+  renderPace(); renderFees();
   const keys = []; for (let i = 11; i >= 0; i--) keys.push(addMonths(curMonthKey(), -i));
   const data = keys.map((k) => { let inc = 0, out = 0; for (const t of S.months.get(k) || []) { if (isGiro(t) || (!S.inclBig && Math.abs(t.a) >= BIG)) continue; if (t.a > 0) inc += t.a; else out -= t.a; } return { k, inc, out }; });
   const max = Math.max(1, ...data.map((d) => Math.max(d.inc, d.out)));
@@ -1425,6 +1458,7 @@ function renderAnalisi() {
 
 /* ---------- render: altro ---------- */
 function renderAltro() {
+  renderLockCard();
   const groups = [["Spese", (c) => !c.archived && c.kind === "out"], ["Entrate", (c) => !c.archived && c.kind === "in"], ["Entrambe", (c) => !c.archived && c.kind === "any"], ["Giroconti (non contano come spese)", (c) => !c.archived && c.kind === "giro"], ["Archiviate", (c) => c.archived]];
   const out = [];
   for (const [title, f] of groups) {
@@ -1647,6 +1681,7 @@ function ensureDefaults(cfg) {
   return c;
 }
 async function applyData(parsed) {
+  if (S.cfg && S.cfg.lock) parsed = { ...parsed, cfg: { ...parsed.cfg, lock: S.cfg.lock } }; // the lock belongs to this phone, not to the backup
   const entries = [["cfg", parsed.cfg], ...Object.entries(parsed.months).map(([k, arr]) => ["m-" + k, { tx: arr }])];
   await queueWrite(() => IDB.replaceAll(entries));
   S.cfg = parsed.cfg; S.months = new Map(Object.entries(parsed.months)); S.index = null; S.sel = null;
@@ -2213,7 +2248,27 @@ function csvDate(s, order) {
   if (mo < 1 || mo > 12 || d < 1 || dt.getMonth() !== mo - 1 || dt.getDate() !== d || y < 1990 || y > 2100) return null;
   return iso(dt);
 }
+const FEE_RE = /\b(commission[ei]|imposta di bollo|canone( mensile| del conto)?|spese (tenuta|conto|bonifico))\b/i;
+function feeCat() { const c = cats().find((x) => x.id === "banca" && !x.archived) || cats().find((x) => !x.archived && x.kind !== "in" && /commission/.test(norm(x.name))); return c ? c.id : null; }
+function isFee(t) { if (!(t.a < 0)) return false; const n = String(t.n || ""); if (/bollo auto|bollo arretrato/i.test(n)) return false; return FEE_RE.test(n) || (!!feeCat() && t.c === feeCat()); }
+function feeSource(t) { const n = norm(t.n); for (const [k, lab] of [["satispay", "Satispay"], ["paypal", "PayPal"], ["pagopa", "PagoPA"], ["telepass", "Telepass"], ["amazon", "Amazon"], ["bollo", "Imposta di bollo"], ["canone", "Canone del conto"]]) if (n.includes(k)) return lab; return "Banca e altre"; }
+function renderFees() {
+  const t0 = todayISO(); const from = addDays(t0, -365); const y0 = t0.slice(0, 4) + "-01-01";
+  const list = allTx().filter((t) => t.d > from && isFee(t)); const tot = round2(-list.reduce((acc, t) => acc + t.a, 0));
+  const ytd = round2(-allTx().filter((t) => t.d >= y0 && isFee(t)).reduce((acc, t) => acc + t.a, 0));
+  const by = new Map(); for (const t of list) { const k = feeSource(t); const e = by.get(k) || { v: 0, n: 0 }; e.v -= t.a; e.n++; by.set(k, e); }
+  const rech = allTx().filter((t) => t.d > from && t.a < 0 && /ricarica satispay|addebito sdd satispay/i.test(t.n || ""));
+  const avg = rech.length ? -rech.reduce((acc, t) => acc + t.a, 0) / rech.length : 0;
+  $("#fees-card").replaceChildren(...[
+    el("h2", { text: "Commissioni e costi della banca" }),
+    el("div", { class: "pace-head" }, el("div", { class: "big", text: eur(tot) }), el("span", { class: "small muted", text: `negli ultimi 12 mesi · ${eur(ytd)} da gennaio` })),
+    ...[...by].sort((a, b) => b[1].v - a[1].v).map(([k, e]) => el("div", { class: "feerow" }, el("span", { text: `${k} · ${e.n} volt${e.n === 1 ? "a" : "e"}` }), el("b", { text: eur(e.v) }))),
+    list.length ? null : el("div", { class: "empty", text: "Nessuna commissione trovata negli ultimi 12 mesi." }),
+    rech.length >= 6 ? el("div", { class: "banner small", text: `Hai ricaricato Satispay ${rech.length} volte in un anno, in media ${eur0(avg)}. Ogni ricarica costa 0,25 €: ricaricando il doppio ogni volta ne risparmieresti circa ${eur(Math.floor(rech.length / 2) * 0.25)} l'anno.` }) : null,
+    el("div", { class: "small muted", text: "Conta i movimenti nella categoria delle commissioni e quelli con «commissioni», «imposta di bollo» o «canone» nella descrizione. Le commissioni che segni insieme al pagamento (es. ricarica Satispay da 51,25) qui non si vedono: importando l'estratto conto arrivano separate." })].filter(Boolean));
+}
 function csvCategory(name, note, a) {
+  if (a < 0 && FEE_RE.test(String(note || "")) && feeCat()) return feeCat();
   const isIn = a > 0;
   const fits = (id) => { const c = cats().find((x) => x.id === id); if (!c || c.archived) return false; return c.kind === "any" || c.kind === "giro" || c.kind === (isIn ? "in" : "out"); };
   if (name) { const nn = norm(name); const c = cats().find((x) => norm(x.name) === nn && !x.archived) || cats().find((x) => norm(x.name) === nn); if (c) return c.id; }
@@ -2682,6 +2737,77 @@ function setupUpdates() {
   setTimeout(check, 3000);
 }
 
+/* ---------- lock with Face ID (passkey on this phone) or a backup PIN ---------- */
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+async function pinHash(pin, salt) { return b64(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin))); }
+const lockCfg = () => (S.cfg && S.cfg.lock && S.cfg.lock.pin ? S.cfg.lock : null);
+const LK = { locked: false, hiddenAt: 0, fails: 0, waitUntil: 0, after: null };
+function showLock(title, after) {
+  const L = lockCfg(); if (!L) return;
+  LK.locked = true; LK.after = after || null;
+  $("#lock-title").textContent = title || "Prisma è bloccata"; $("#lock-msg").textContent = ""; $("#lock-pin").value = "";
+  $("#lock-face").hidden = !L.id; $("#lock-cancel").hidden = !after;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  $("#lock").hidden = false;
+}
+async function unlocked() {
+  LK.locked = false; LK.fails = 0; $("#lock").hidden = true; const fn = LK.after; LK.after = null; if (fn) await fn();
+}
+async function faceUnlock(auto) {
+  const L = lockCfg(); if (!L || !L.id) return;
+  try {
+    await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), allowCredentials: [{ type: "public-key", id: unb64(L.id) }], userVerification: "required", timeout: 60000 } });
+    await unlocked();
+  } catch (_) { if (!auto) $("#lock-msg").textContent = "Face ID non riuscito: riprova o usa il PIN."; }
+}
+async function pinUnlock(e) {
+  e.preventDefault(); const L = lockCfg(); if (!L) return;
+  if (Date.now() < LK.waitUntil) { $("#lock-msg").textContent = "Troppi tentativi: aspetta qualche secondo."; return; }
+  const v = $("#lock-pin").value.trim(); $("#lock-pin").value = "";
+  if (v && (await pinHash(v, L.salt)) === L.pin) { await unlocked(); return; }
+  if (++LK.fails >= 5) { LK.fails = 0; LK.waitUntil = Date.now() + 30000; $("#lock-msg").textContent = "Troppi tentativi: aspetta 30 secondi."; }
+  else $("#lock-msg").textContent = "PIN sbagliato.";
+}
+async function enableLock() {
+  const p1 = $("#lock-new-pin").value.trim(), p2 = $("#lock-new-pin2").value.trim();
+  if (!/^\d{4,8}$/.test(p1)) { toast("Il PIN deve avere da 4 a 8 cifre."); return; }
+  if (p1 !== p2) { toast("I due PIN non coincidono."); return; }
+  let id = null;
+  try {
+    if (window.PublicKeyCredential && (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) {
+      const cred = await navigator.credentials.create({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: "Prisma" }, user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "Prisma", displayName: "Prisma" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000 } });
+      id = b64(cred.rawId);
+    }
+  } catch (e) { if (e && e.name === "NotAllowedError") { toast("Face ID annullato: il blocco non è attivo."); return; } }
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  try {
+    await writeCfg({ ...S.cfg, lock: { id, salt, pin: await pinHash(p1, salt), since: todayISO() } });
+    $("#lock-new-pin").value = ""; $("#lock-new-pin2").value = ""; $("#lock-setup").hidden = true;
+    toast(id ? "Blocco attivo: Face ID oppure il PIN." : "Face ID non disponibile qui: blocco attivo con il PIN.");
+  } catch (_) {}
+}
+function disableLock() { showLock("Sblocca per disattivare il blocco", async () => { try { const c = { ...S.cfg }; delete c.lock; await writeCfg(c); toast("Blocco disattivato."); } catch (_) {} }); faceUnlock(true); }
+function renderLockCard() {
+  const L = lockCfg();
+  $("#lock-info").textContent = L ? `Attivo dal ${fmtD(L.since || todayISO(), true)}: ${L.id ? "Face ID" : "solo PIN"}, con il PIN di riserva. Si blocca quando riapri l'app dopo più di un minuto.` : "Quando è attivo, Prisma si apre solo con Face ID (o il PIN di riserva). I dati restano sul telefono come ora.";
+  $("#btn-lock-on").hidden = !!L; $("#btn-lock-off").hidden = !L; $("#btn-lock-now").hidden = !L; if (L) $("#lock-setup").hidden = true;
+}
+function setupLock() {
+  $("#lock-face").addEventListener("click", () => faceUnlock(false));
+  $("#lock-pin-form").addEventListener("submit", pinUnlock);
+  $("#lock-cancel").addEventListener("click", () => { LK.after = null; LK.locked = false; $("#lock").hidden = true; });
+  $("#btn-lock-on").addEventListener("click", () => { $("#lock-setup").hidden = false; $("#lock-new-pin").focus(); });
+  $("#btn-lock-confirm").addEventListener("click", enableLock);
+  $("#btn-lock-off").addEventListener("click", disableLock);
+  $("#btn-lock-now").addEventListener("click", () => showLock());
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { LK.hiddenAt = Date.now(); return; }
+    if (lockCfg() && !LK.locked && LK.hiddenAt && Date.now() - LK.hiddenAt > 60000) { showLock(); faceUnlock(true); }
+  });
+}
+
 /* ---------- boot ---------- */
 async function boot() {
   bind(); route(); window.addEventListener("hashchange", route);
@@ -2698,7 +2824,9 @@ async function boot() {
   } catch (e) {
     banner("Non riesco ad aprire l'archivio dei dati su questo telefono. Se stai navigando in modalità privata, aprila normalmente.");
   }
-  S.loaded = true; renderAll();
+  S.loaded = true; setupLock();
+  if (lockCfg()) { showLock(); faceUnlock(true); }
+  renderAll();
   document.addEventListener("visibilitychange", () => { if (!document.hidden && S.cfg) renderAll(); });
 }
 boot();
